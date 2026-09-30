@@ -1,0 +1,50 @@
+/* ============================================================
+   记账页专属样式
+   ============================================================ */
+
+/* 底部悬浮 + 按钮，预留足够底部空间 */
+#accounting-body { padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
+
+/* 日期切换条 */
+.date-bar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
+.date-bar .date-mid { flex: 1; min-width: 0; text-align: center; }
+.date-bar .date-arrow:disabled { opacity: 0.3; cursor: default; }
+.date-txt { font-size: 16px; }
+.date-sum { margin-top: 2px; }
+
+/* 当日记录 */
+.rec-row { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line-soft); }
+.rec-row:last-child { border-bottom: none; }
+.rec-ico {
+  width: 40px; height: 40px; border-radius: 50%; background: var(--card-2);
+  display: flex; align-items: center; justify-content: center; font-size: 19px; flex-shrink: 0;
+}
+.rec-main { flex: 1; min-width: 0; }
+.rec-note { font-size: var(--fs-sm); font-weight: 600; }
+.rec-time { margin-top: 2px; }
+.rec-amt { font-weight: 700; }
+.rec-amt.out { color: var(--text); }
+.rec-amt.in { color: var(--success); }
+.rec-del { flex-shrink: 0; }
+
+/* 右下悬浮 + 按钮 */
+.fab-add {
+  position: fixed; left: 50%; transform: translateX(-50%);
+  bottom: 24px; z-index: 150; width: 56px; height: 56px; border-radius: 50%;
+  background: var(--primary); color: var(--on-primary); box-shadow: var(--shadow);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.15s ease;
+}
+.fab-add:active { transform: translateX(-50%) scale(0.9); }
+
+/* 分类宫格 */
+.cat-grid { gap: 12px; }
+.cat-cell {
+  display: flex; flex-direction: column; align-items: center; gap: 6px;
+  padding: 12px 4px; border-radius: 14px; background: var(--card-2);
+  border: 2px solid transparent; transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.cat-cell .cat-e { font-size: 22px; }
+.cat-cell .cat-n { font-size: var(--fs-xs); color: var(--text-2); font-weight: 600; }
+.cat-cell.on { border-color: var(--primary); background: var(--card); }
