@@ -1,7 +1,8 @@
 /* 用户管理 */
 .filter-card { display: flex; flex-direction: column; gap: 12px; margin-bottom: 14px; }
 .filter-selects { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-.filter-selects .select { width: auto; min-width: 116px; flex: 1; }
+.filter-selects .select { width: auto; min-width: 116px; flex: 1; height: 42px; }
+.filter-selects .btn { height: 42px; padding: 0 16px; }
 .ustats { gap: 14px; margin-bottom: 14px; }
 .ustats .stat-val { font-size: 22px; }
 .table-wrap { overflow-x: auto; }
