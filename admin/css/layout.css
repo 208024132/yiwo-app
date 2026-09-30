@@ -1,6 +1,7 @@
 /* 页面布局管理 */
-.layout-banner { margin-bottom: 14px; }
-.layout-seg { margin-bottom: 14px; }
+.layout-banner { margin-bottom: 14px; margin-top: 0; }
+.layout-seg { margin-bottom: 14px; max-width: 420px; }
+.field .seg { max-width: 300px; }
 .hint { font-size: var(--fs-xs); color: var(--text-3); margin-top: 6px; }
 .tl-grid { gap: 10px; }
 .tl-label { margin-bottom: 4px; }
@@ -30,4 +31,8 @@
 @media (max-width: 760px) {
   .theme-grid { grid-template-columns: 1fr; }
   .tl-grid { grid-template-columns: repeat(2, 1fr); }
+  /* 小屏横幅行换行：文案独占一行，色调与删除按钮居下一行 */
+  .banner-row { flex-wrap: wrap; }
+  .banner-row .input { flex-basis: 100%; }
+  .banner-row .select { flex: 1; width: auto; }
 }
