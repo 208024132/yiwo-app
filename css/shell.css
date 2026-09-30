@@ -147,7 +147,8 @@
 /* ============================================================
    管理后台外壳
    ============================================================ */
-.admin-body { background: var(--bg); min-height: 100vh; display: flex; }
+.admin-body { background: var(--bg); min-height: 100vh; }
+.admin-layout { display: flex; align-items: flex-start; }
 .admin-side {
   width: 232px; flex-shrink: 0; height: 100vh; position: sticky; top: 0;
   background: var(--card); border-right: 1px solid var(--line);
@@ -184,18 +185,42 @@
   position: sticky; top: 0; z-index: 100;
   background: color-mix(in srgb, var(--bg) 86%, transparent);
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  padding: 16px 28px; display: flex; align-items: center; gap: 12px;
+  padding: 14px 28px; display: flex; align-items: center; gap: 12px;
   border-bottom: 1px solid var(--line-soft);
 }
-.admin-top h1 { font-size: 20px; flex: 1; }
+.admin-top h1 { font-size: 20px; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .admin-content { padding: 22px 28px 40px; }
 
+/* 抽屉导航（移动端） */
+.admin-menu-btn { display: none; flex-shrink: 0; margin-left: -10px; }
+.admin-mask {
+  position: fixed; inset: 0; background: rgba(20, 14, 8, 0.45); z-index: 9400;
+  opacity: 0; pointer-events: none; transition: opacity 0.25s ease;
+  backdrop-filter: blur(2px); -webkit-backdrop-filter: blur(2px);
+}
+[data-theme="purple"] .admin-mask { background: rgba(0, 0, 0, 0.55); }
+
 @media (max-width: 860px) {
-  .admin-side { width: 64px; }
-  .admin-logo .logo-name, .admin-logo .logo-sub,
-  .admin-nav .nav-item span, .admin-side-user .side-user-info { display: none; }
-  .admin-nav .nav-item { justify-content: center; }
-  .admin-side-user { justify-content: center; }
+  /* 侧边栏变抽屉 */
+  .admin-side {
+    position: fixed; left: 0; top: 0; bottom: 0; z-index: 9500;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.22, 0.9, 0.36, 1);
+  }
+  .admin-side.open { transform: translateX(0); }
+  .admin-mask.show { opacity: 1; pointer-events: auto; }
+  body.nav-open { overflow: hidden; }
+
+  .admin-menu-btn { display: inline-flex; }
+  .admin-top { padding: 10px 16px; gap: 8px; }
+  .admin-top h1 { font-size: 17px; }
+  .admin-content { padding: 16px 16px 32px; }
+  .admin-dept { display: none; }
+}
+
+/* 超宽屏：后台内容居中限宽，避免表单在超大屏上被拉散 */
+@media (min-width: 1440px) {
+  .admin-content { max-width: 1240px; width: 100%; margin: 0 auto; }
 }
 
 /* 后台开关行 / 设置行 */
