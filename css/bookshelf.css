@@ -1,0 +1,48 @@
+/* 阅读书架 专属样式 */
+
+.book-seg { margin-bottom: 12px; }
+
+/* 推荐 grid */
+.reco-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.book-card {
+  background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm);
+  overflow: hidden; display: flex; flex-direction: column;
+}
+.book-cover {
+  height: 120px; display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 6px; padding: 12px; text-align: center; color: #fff;
+}
+.book-cover .bc-title {
+  font-weight: 700; font-size: var(--fs-base); line-height: 1.3;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.book-cover .bc-author { font-size: 11px; opacity: 0.85; }
+.book-info { padding: 12px; flex: 1; display: flex; flex-direction: column; gap: 6px; }
+.book-info .book-title { font-weight: 700; }
+.book-info .book-meta { font-size: var(--fs-xs); color: var(--text-3); display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.book-info .book-desc { font-size: var(--fs-xs); color: var(--text-2); }
+.book-add { margin: 0 12px 12px; }
+.book-add .tag.success { width: 100%; justify-content: center; padding: 8px 13px; }
+
+/* 书架列表 */
+.shelf-list { display: flex; flex-direction: column; gap: 10px; }
+.shelf-item { display: flex; gap: 12px; align-items: center; padding: 12px; }
+.shelf-cover {
+  width: 64px; height: 84px; border-radius: 10px; color: #fff; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 22px;
+}
+.shelf-main { flex: 1; min-width: 0; }
+.shelf-title { font-weight: 600; font-size: var(--fs-base); }
+.shelf-author { font-size: var(--fs-xs); color: var(--text-3); margin-top: 2px; }
+.shelf-main .progress { margin-top: 10px; }
+.shelf-side { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
+.shelf-pct { font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); }
+
+/* 阅读进度 */
+.range { width: 100%; accent-color: var(--primary); }
+.range-box { display: flex; align-items: center; gap: 12px; margin: 8px 0 4px; }
+.range-box .range { flex: 1; }
+.range-val { font-size: var(--fs-lg); font-weight: 700; color: var(--primary); min-width: 52px; text-align: right; }
+.prog-title { text-align: center; font-weight: 700; font-size: var(--fs-lg); margin: 6px 0 14px; }
+
+#bookshelf-body { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
