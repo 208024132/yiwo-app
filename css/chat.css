@@ -1,0 +1,21 @@
+/* 聊天页样式 */
+
+/* 避开底部输入条遮挡 */
+.page.chat-page .page-body { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
+
+.chat-time {
+  text-align: center; font-size: 11px; color: var(--text-3); margin: 16px 0 8px;
+}
+.bubble-row { display: flex; align-items: flex-end; gap: 8px; margin-bottom: 12px; }
+.bubble-ava { flex-shrink: 0; }
+.bubble {
+  max-width: 76%; padding: 10px 14px; border-radius: 16px; background: var(--card);
+  box-shadow: var(--shadow-sm); border: 1px solid var(--line-soft);
+  font-size: var(--fs-base); line-height: 1.5; word-break: break-word;
+}
+.bubble-row:not(.mine) .bubble { border-bottom-left-radius: 6px; }
+.bubble-row.mine { justify-content: flex-end; }
+.bubble-row.mine .bubble {
+  background: var(--grad); color: var(--on-primary); border: none;
+  border-bottom-right-radius: 6px;
+}
