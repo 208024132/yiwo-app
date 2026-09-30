@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>以我 · 管理台 - 登录</title>
+  <link rel="stylesheet" href="../css/base.css">
+  <link rel="stylesheet" href="../css/components.css">
+  <link rel="stylesheet" href="css/index.css">
+</head>
+<body>
+  <div class="login-wrap">
+    <div class="login-card fade-in">
+      <div class="login-logo">以</div>
+      <h1>以我 · 管理台</h1>
+      <p class="login-sub txt-2">欢迎回来，请登录管理员账号</p>
+      <form id="login-form" novalidate>
+        <div class="field">
+          <label>账号</label>
+          <input class="input" id="login-account" type="text" placeholder="admin@yiwo.com" autocomplete="username">
+        </div>
+        <div class="field">
+          <label>密码</label>
+          <input class="input" id="login-password" type="password" placeholder="888888" autocomplete="current-password">
+        </div>
+        <button class="btn primary block" type="submit">登录</button>
+      </form>
+      <a class="login-back" href="../index.html">返回用户端 →</a>
+    </div>
+  </div>
+
+  <script src="../js/theme.js"></script>
+  <script src="../js/store.js"></script>
+  <script src="../js/ui.js"></script>
+  <script src="js/index.js"></script>
+</body>
+</html>
