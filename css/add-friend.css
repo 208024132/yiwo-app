@@ -1,0 +1,7 @@
+/* 添加好友页样式 */
+
+.search-row { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.search-row .search-bar { flex: 1; min-width: 0; }
+.search-row .btn { flex-shrink: 0; }
+.result-list { background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.result-list .li-sub { margin-top: 1px; }
