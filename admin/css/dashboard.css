@@ -1,0 +1,16 @@
+/* 数据总览 */
+.db-stats { gap: 14px; }
+.db-grid { gap: 14px; margin-top: 14px; }
+.panel-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+.panel-head h3 { font-size: 15px; }
+.db-panel canvas { display: block; }
+.chart-box { width: 100%; }
+.db-panel .list { box-shadow: none; border: 1px solid var(--line-soft); border-radius: 14px; }
+
+@media (max-width: 1000px) {
+  .db-stats { grid-template-columns: repeat(2, 1fr); }
+}
+@media (max-width: 760px) {
+  .db-grid { grid-template-columns: 1fr; }
+  .db-stats { grid-template-columns: 1fr; }
+}
