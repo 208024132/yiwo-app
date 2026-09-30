@@ -1,0 +1,29 @@
+/* 后台登录页 */
+
+.login-wrap {
+  min-height: 100vh; display: flex; align-items: center; justify-content: center;
+  padding: 24px; background: var(--grad); position: relative; overflow: hidden;
+}
+.login-wrap::before, .login-wrap::after {
+  content: ""; position: absolute; border-radius: 50%; background: rgba(255, 255, 255, 0.10);
+}
+.login-wrap::before { width: 280px; height: 280px; top: -100px; right: -80px; }
+.login-wrap::after { width: 210px; height: 210px; bottom: -90px; left: -70px; background: rgba(255, 255, 255, 0.07); }
+
+.login-card {
+  width: 100%; max-width: 400px; background: var(--card); border-radius: 24px;
+  padding: 40px 32px 32px; box-shadow: var(--shadow); text-align: center;
+  position: relative; z-index: 1;
+}
+.login-logo {
+  width: 58px; height: 58px; border-radius: 16px; background: #fff; color: var(--primary-strong);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 27px; font-weight: 800; margin: 0 auto 14px;
+  border: 1px solid var(--line); box-shadow: var(--shadow-sm);
+}
+.login-card h1 { font-size: 24px; }
+.login-sub { font-size: var(--fs-sm); margin: 6px 0 22px; }
+.login-card .field { text-align: left; }
+.login-card .btn { margin-top: 6px; }
+.login-back { display: inline-block; margin-top: 20px; font-size: var(--fs-sm); color: var(--text-3); }
+.login-back:hover { color: var(--primary); }
