@@ -1,0 +1,26 @@
+/* 注册页样式 */
+
+.auth-page {
+  display: flex; align-items: center; justify-content: center;
+  padding: 32px 24px calc(40px + env(safe-area-inset-bottom, 0px));
+}
+.auth-card {
+  width: 100%; max-width: 400px; background: var(--card);
+  border-radius: 24px; box-shadow: var(--shadow); padding: 28px 24px 24px;
+}
+.auth-title { font-size: var(--fs-xl); font-weight: 800; text-align: center; margin-bottom: 20px; }
+
+.code-btn { flex-shrink: 0; white-space: nowrap; }
+
+.agree-row {
+  display: flex; align-items: flex-start; gap: 8px; font-size: var(--fs-sm);
+  color: var(--text-2); cursor: pointer; margin-top: 2px; line-height: 1.5;
+}
+.agree-row input { margin-top: 3px; accent-color: var(--primary); flex-shrink: 0; }
+.agree-row a { color: var(--primary); }
+.agree-note {
+  font-size: var(--fs-xs); color: var(--text-3); margin-top: 8px; line-height: 1.6;
+}
+
+.auth-links { display: flex; justify-content: center; margin-top: 18px; font-size: var(--fs-sm); }
+.auth-links a { color: var(--primary); font-weight: 600; }
