@@ -1,0 +1,29 @@
+/* 备忘录 专属样式 */
+
+.memo-search { margin-bottom: 12px; }
+.memo-list { display: flex; flex-direction: column; gap: 10px; }
+.memo-card { padding: 14px; }
+
+.memo-top { display: flex; gap: 6px; align-items: flex-start; }
+.memo-pin {
+  color: var(--text-3); flex-shrink: 0; width: 30px; height: 30px;
+  margin-top: -4px; margin-left: -6px;
+}
+.memo-pin.on { color: var(--primary); }
+.memo-text { flex: 1; min-width: 0; padding-top: 2px; }
+.memo-del { color: var(--text-3); flex-shrink: 0; margin-top: -4px; margin-right: -6px; }
+
+.memo-bottom { display: flex; align-items: center; justify-content: space-between; margin-top: 10px; }
+.memo-time { font-size: 11px; color: var(--text-3); }
+.memo-tag { margin-top: 12px; }
+
+.fab {
+  position: fixed; right: max(20px, calc(50% - 240px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 300;
+  width: 56px; height: 56px; border-radius: 50%; background: var(--grad); color: #fff;
+  display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow);
+  transition: transform 0.15s ease;
+}
+.fab:active { transform: scale(0.92); }
+
+#memo-body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
