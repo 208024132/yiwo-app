@@ -1,0 +1,33 @@
+/* 页面布局管理 */
+.layout-banner { margin-bottom: 14px; }
+.layout-seg { margin-bottom: 14px; }
+.hint { font-size: var(--fs-xs); color: var(--text-3); margin-top: 6px; }
+.tl-grid { gap: 10px; }
+.tl-label { margin-bottom: 4px; }
+#banner-list { display: flex; flex-direction: column; gap: 10px; margin-bottom: 10px; }
+.banner-row { display: flex; gap: 8px; align-items: center; }
+.banner-row .input { flex: 1; min-width: 0; }
+.banner-row .select { width: 112px; flex-shrink: 0; }
+
+.theme-grid { gap: 12px; }
+.theme-card {
+  background: var(--card); border-radius: 16px; padding: 10px; cursor: pointer;
+  border: 2px solid transparent; transition: border-color 0.15s ease, transform 0.15s ease;
+  box-shadow: var(--shadow-sm); position: relative;
+}
+.theme-card:active { transform: scale(0.98); }
+.theme-card.on { border-color: var(--primary); }
+.theme-grid .tag.sm { padding: 2px 8px; font-size: 11px; }
+.theme-swatch { height: 46px; border-radius: 10px; margin-bottom: 10px; }
+.theme-name { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+.theme-check {
+  position: absolute; top: 16px; right: 16px; width: 22px; height: 22px; border-radius: 50%;
+  background: #fff; color: var(--primary); display: flex; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.15s ease; box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+.theme-card.on .theme-check { opacity: 1; }
+
+@media (max-width: 760px) {
+  .theme-grid { grid-template-columns: 1fr; }
+  .tl-grid { grid-template-columns: repeat(2, 1fr); }
+}
