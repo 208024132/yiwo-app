@@ -51,12 +51,26 @@ window.AdminShell = (() => {
     main.className = "admin-main";
     main.innerHTML = `
       <div class="admin-top">
+        <button class="icon-btn admin-menu-btn" data-menu title="导航菜单" aria-label="打开导航菜单">${UI.icon("menu", 20)}</button>
         <h1>${UI.esc(title)}</h1>
-        <span class="tag gray">${UI.esc(admin.dept || "")}</span>
+        <span class="tag gray admin-dept" title="${UI.esc(admin.dept || "")}">${UI.esc(admin.dept || "")}</span>
         <a class="icon-btn" href="../index.html" title="预览用户端">${UI.icon("home", 18)}</a>
       </div>
       <div class="admin-content" id="admin-content"></div>`;
     app.appendChild(main);
+
+    // 移动端抽屉导航：遮罩 + 开关
+    const mask = document.createElement("div");
+    mask.className = "admin-mask";
+    document.body.appendChild(mask);
+    const setNav = (open) => {
+      side.classList.toggle("open", open);
+      mask.classList.toggle("show", open);
+      document.body.classList.toggle("nav-open", open);
+    };
+    main.querySelector("[data-menu]").addEventListener("click", () => setNav(!side.classList.contains("open")));
+    mask.addEventListener("click", () => setNav(false));
+    side.querySelectorAll(".nav-item").forEach(n => n.addEventListener("click", () => setNav(false)));
 
     side.querySelector("[data-exit]").onclick = () => {
       Store.logout();
