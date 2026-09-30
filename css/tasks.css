@@ -1,0 +1,29 @@
+/* 任务进度 专属样式 */
+
+.task-list { display: flex; flex-direction: column; gap: 10px; }
+.task-card { padding: 14px; }
+
+.task-top { display: flex; align-items: center; gap: 10px; }
+.task-title { flex: 1; min-width: 0; font-weight: 600; }
+.task-title.is-done { text-decoration: line-through; opacity: 0.55; }
+.task-del { flex-shrink: 0; color: var(--text-3); margin-right: -6px; }
+
+.task-prog { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
+.task-prog .progress { flex: 1; }
+.task-pct { font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); min-width: 40px; text-align: right; }
+
+.range { width: 100%; accent-color: var(--primary); }
+.range-box { display: flex; align-items: center; gap: 12px; margin-top: 4px; }
+.range-box .range { flex: 1; }
+.range-val { font-size: var(--fs-lg); font-weight: 700; color: var(--primary); min-width: 52px; text-align: right; }
+
+.fab {
+  position: fixed; right: max(20px, calc(50% - 240px));
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px)); z-index: 300;
+  width: 56px; height: 56px; border-radius: 50%; background: var(--grad); color: #fff;
+  display: flex; align-items: center; justify-content: center; box-shadow: var(--shadow);
+  transition: transform 0.15s ease;
+}
+.fab:active { transform: scale(0.92); }
+
+#tasks-body { padding-bottom: calc(84px + env(safe-area-inset-bottom, 0px)); }
