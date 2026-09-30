@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>以我 · 注册</title>
+  <link rel="stylesheet" href="css/base.css">
+  <link rel="stylesheet" href="css/components.css">
+  <link rel="stylesheet" href="css/register.css">
+</head>
+<body>
+  <div class="page auth-page">
+    <main class="auth-card fade-in">
+      <h2 class="auth-title">注册以我账号</h2>
+
+      <div class="field">
+        <label for="nickname">网名</label>
+        <input class="input" id="nickname" type="text" placeholder="给自己起个好听的名字" autocomplete="nickname">
+        <div class="field-err" id="err-nickname"></div>
+      </div>
+      <div class="field">
+        <label for="account">QQ邮箱</label>
+        <input class="input" id="account" type="text" placeholder="xxx@qq.com" autocomplete="email">
+        <div class="field-err" id="err-account"></div>
+      </div>
+      <div class="field">
+        <label for="code">验证码</label>
+        <div class="input-group">
+          <input class="input" id="code" type="text" placeholder="6 位数字验证码" maxlength="6" inputmode="numeric">
+          <button class="btn ghost sm code-btn" id="send-code">发送验证码</button>
+        </div>
+        <div class="field-err" id="err-code"></div>
+      </div>
+      <div class="field">
+        <label for="password">密码</label>
+        <input class="input" id="password" type="password" placeholder="至少 6 位" autocomplete="new-password">
+        <div class="field-err" id="err-password"></div>
+      </div>
+      <div class="field">
+        <label for="confirm">确认密码</label>
+        <input class="input" id="confirm" type="password" placeholder="再次输入密码" autocomplete="new-password">
+        <div class="field-err" id="err-confirm"></div>
+      </div>
+
+      <label class="agree-row" for="agree">
+        <input type="checkbox" id="agree">
+        <span>我已阅读并同意<a href="javascript:;">《用户协议》</a>与<a href="javascript:;">《隐私政策》</a></span>
+      </label>
+      <div class="agree-note">注册即代表同意我们收集：头像、个性签名、网名、用户ID、手机号、年龄、性别、出生日期、地区，详见隐私政策。</div>
+
+      <button class="btn primary block mt-16" id="register-btn">注册</button>
+      <div class="auth-links">
+        <a href="login.html">已有账号？去登录</a>
+      </div>
+    </main>
+  </div>
+
+  <script src="js/theme.js"></script>
+  <script src="js/store.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/register.js"></script>
+</body>
+</html>
