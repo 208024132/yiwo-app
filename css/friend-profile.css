@@ -1,0 +1,73 @@
+/* 好友资料页样式 */
+
+/* 头像渐变背景头卡 */
+.profile-hero {
+  background: var(--grad); color: var(--on-primary); border-radius: 24px;
+  padding: 26px 20px 22px; text-align: center; box-shadow: var(--shadow);
+  position: relative; overflow: hidden;
+}
+.profile-hero::after {
+  content: ""; position: absolute; right: -30px; top: -40px; width: 130px; height: 130px;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.12);
+}
+.profile-hero::before {
+  content: ""; position: absolute; left: 34px; bottom: -50px; width: 104px; height: 104px;
+  border-radius: 50%; background: rgba(255, 255, 255, 0.09);
+}
+.profile-ava { display: flex; justify-content: center; margin-bottom: 12px; position: relative; }
+.profile-ava .avatar { border: 3px solid rgba(255, 255, 255, 0.55); }
+.profile-name { font-size: 20px; font-weight: 800; position: relative; }
+.profile-sig { font-size: var(--fs-sm); opacity: 0.9; margin-top: 6px; position: relative; }
+.profile-region { font-size: var(--fs-xs); opacity: 0.8; margin-top: 8px; position: relative; }
+
+/* 底部操作 */
+.profile-actions { display: flex; gap: 10px; margin-top: 14px; }
+.profile-actions .btn { flex: 1; }
+
+/* 资料列表 */
+.profile-info { margin-top: 14px; }
+.profile-info .list-item { justify-content: space-between; }
+.info-label { color: var(--text-3); font-size: var(--fs-sm); }
+.info-val { font-weight: 600; }
+
+/* 动态卡片流（与好友页一致） */
+.moments-feed { display: flex; flex-direction: column; gap: 12px; }
+.moment-card { padding: 14px 16px; }
+.m-head { display: flex; align-items: center; gap: 10px; }
+.m-ava { flex-shrink: 0; }
+.m-main { flex: 1; min-width: 0; }
+.m-name { font-weight: 600; font-size: var(--fs-sm); }
+.m-time { font-size: 11px; color: var(--text-3); }
+.m-text { margin-top: 10px; font-size: var(--fs-base); line-height: 1.6; word-break: break-word; }
+.m-repost { color: var(--text-2); font-size: var(--fs-sm); }
+.m-photos { margin-top: 10px; display: grid; gap: 8px; }
+.m-photo {
+  aspect-ratio: 16 / 10; border-radius: 14px; display: flex; align-items: center;
+  justify-content: center; font-size: 34px; min-height: 110px; width: 100%;
+}
+.m-actions { display: flex; gap: 4px; margin-top: 12px; border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.m-act {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--text-3); font-size: var(--fs-sm); font-weight: 600; padding: 7px 0;
+  border-radius: 10px; transition: background 0.15s ease, color 0.15s ease;
+}
+.m-act:active { background: var(--card-2); }
+.m-act .m-act-ico { display: flex; }
+.m-act.on { color: #e74c5e; }
+.m-act.on .m-act-ico { color: #e74c5e; }
+
+/* 评论弹层 */
+.cmt-list {
+  max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column;
+  gap: 14px; margin-bottom: 14px;
+}
+.cmt-none { color: var(--text-3); font-size: var(--fs-sm); text-align: center; padding: 18px 0; }
+.cmt-item { display: flex; gap: 10px; }
+.cmt-ava { flex-shrink: 0; }
+.cmt-main { flex: 1; min-width: 0; }
+.cmt-name { font-size: var(--fs-sm); font-weight: 600; }
+.cmt-text { font-size: var(--fs-sm); color: var(--text); word-break: break-word; margin-top: 1px; }
+.cmt-time { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.cmt-inputbar { display: flex; gap: 8px; }
+.cmt-inputbar .input { flex: 1; min-width: 0; }
+.cmt-inputbar .btn { flex-shrink: 0; }
