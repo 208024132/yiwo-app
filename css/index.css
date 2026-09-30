@@ -17,16 +17,6 @@
 .hello-card .hello-hi { font-size: 20px; font-weight: 800; letter-spacing: 0.01em; }
 .hello-card .hello-sub { font-size: var(--fs-sm); opacity: 0.88; margin-top: 3px; }
 
-/* 顶部横幅（后台可配置） */
-.banner-bar {
-  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
-  border-radius: 14px; font-size: var(--fs-sm); font-weight: 600; margin-top: 12px;
-}
-.banner-bar.grad { background: var(--grad); color: var(--on-primary); }
-.banner-bar.soft { background: var(--primary-soft); color: var(--primary-strong); }
-.banner-bar.warn { background: rgba(224, 160, 44, 0.16); color: #a97b1c; }
-.banner-bar.dark { background: var(--text); color: var(--bg); }
-
 /* 统计卡片 */
 .stat-strip { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 12px; }
 .stat-mini {
