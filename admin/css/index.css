@@ -27,3 +27,9 @@
 .login-card .btn { margin-top: 6px; }
 .login-back { display: inline-block; margin-top: 20px; font-size: var(--fs-sm); color: var(--text-3); }
 .login-back:hover { color: var(--primary); }
+
+/* 手机端登录卡收窄边距 */
+@media (max-width: 480px) {
+  .login-wrap { padding: 16px; }
+  .login-card { padding: 32px 22px 26px; border-radius: 20px; }
+}
