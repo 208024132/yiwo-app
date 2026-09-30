@@ -84,6 +84,16 @@
 [data-theme="purple"] .tag.warn { color: #e8b54d; }
 .tag.danger { background: var(--danger-soft); color: var(--danger); }
 
+/* ---------- 顶部横幅提示条（用户端首页 / 管理后台共用） ---------- */
+.banner-bar {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  border-radius: 14px; font-size: var(--fs-sm); font-weight: 600; margin-top: 12px;
+}
+.banner-bar.grad { background: var(--grad); color: var(--on-primary); }
+.banner-bar.soft { background: var(--primary-soft); color: var(--primary-strong); }
+.banner-bar.warn { background: rgba(224, 160, 44, 0.16); color: #a97b1c; }
+.banner-bar.dark { background: var(--text); color: var(--bg); }
+
 /* ---------- 表单 ---------- */
 .field { margin-bottom: 14px; }
 .field > label {
@@ -120,7 +130,8 @@
   font-weight: 600; color: var(--text-2); transition: all 0.18s ease;
   white-space: nowrap;
 }
-.seg button.on { background: var(--card); color: var(--primary-strong); box-shadow: var(--shadow-sm); }
+.seg button:hover { color: var(--text); }
+.seg button.on { background: var(--card); color: var(--primary-strong); box-shadow: var(--shadow-sm); font-weight: 700; }
 
 /* ---------- 开关 ---------- */
 .switch { position: relative; width: 44px; height: 25px; flex-shrink: 0; }
