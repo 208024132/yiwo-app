@@ -1,0 +1,69 @@
+/* 好友页样式 */
+
+/* 分段控制器 */
+.friends-seg { margin-bottom: 12px; position: sticky; top: calc(58px + env(safe-area-inset-top, 0px)); z-index: 50; }
+.friends-seg button { display: flex; align-items: center; justify-content: center; gap: 5px; position: relative; }
+.seg-badge {
+  min-width: 16px; height: 16px; padding: 0 4px; border-radius: 999px;
+  background: var(--danger); color: #fff; font-size: 10px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 搜索 + 添加入口 */
+.search-row { display: flex; align-items: center; gap: 8px; }
+.search-row .search-bar { flex: 1; min-width: 0; }
+.add-friend-entry { flex-shrink: 0; }
+
+/* 联系人列表右侧 */
+.li-right { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; flex-shrink: 0; }
+.li-time { font-size: 11px; color: var(--text-3); }
+
+/* 好友申请卡片 */
+.req-list { display: flex; flex-direction: column; gap: 12px; }
+.req-card { display: flex; align-items: center; gap: 12px; }
+.req-main { flex: 1; min-width: 0; }
+.req-name { font-weight: 600; font-size: var(--fs-sm); }
+.req-time { font-size: 11px; color: var(--text-3); margin-top: 3px; }
+.req-btns { display: flex; gap: 8px; flex-shrink: 0; }
+
+/* 动态卡片流 */
+.moments-feed { display: flex; flex-direction: column; gap: 12px; }
+.moment-card { padding: 14px 16px; }
+.m-head { display: flex; align-items: center; gap: 10px; }
+.m-ava { flex-shrink: 0; }
+.m-main { flex: 1; min-width: 0; }
+.m-name { font-weight: 600; font-size: var(--fs-sm); }
+.m-time { font-size: 11px; color: var(--text-3); }
+.m-text { margin-top: 10px; font-size: var(--fs-base); line-height: 1.6; word-break: break-word; }
+.m-repost { color: var(--text-2); font-size: var(--fs-sm); }
+.m-photos { margin-top: 10px; display: grid; gap: 8px; }
+.m-photo {
+  aspect-ratio: 16 / 10; border-radius: 14px; display: flex; align-items: center;
+  justify-content: center; font-size: 34px; min-height: 110px; width: 100%;
+}
+.m-actions { display: flex; gap: 4px; margin-top: 12px; border-top: 1px solid var(--line-soft); padding-top: 8px; }
+.m-act {
+  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--text-3); font-size: var(--fs-sm); font-weight: 600; padding: 7px 0;
+  border-radius: 10px; transition: background 0.15s ease, color 0.15s ease;
+}
+.m-act:active { background: var(--card-2); }
+.m-act .m-act-ico { display: flex; }
+.m-act.on { color: #e74c5e; }
+.m-act.on .m-act-ico { color: #e74c5e; }
+
+/* 评论弹层 */
+.cmt-list {
+  max-height: 40vh; overflow-y: auto; display: flex; flex-direction: column;
+  gap: 14px; margin-bottom: 14px;
+}
+.cmt-none { color: var(--text-3); font-size: var(--fs-sm); text-align: center; padding: 18px 0; }
+.cmt-item { display: flex; gap: 10px; }
+.cmt-ava { flex-shrink: 0; }
+.cmt-main { flex: 1; min-width: 0; }
+.cmt-name { font-size: var(--fs-sm); font-weight: 600; }
+.cmt-text { font-size: var(--fs-sm); color: var(--text); word-break: break-word; margin-top: 1px; }
+.cmt-time { font-size: 11px; color: var(--text-3); margin-top: 2px; }
+.cmt-inputbar { display: flex; gap: 8px; }
+.cmt-inputbar .input { flex: 1; min-width: 0; }
+.cmt-inputbar .btn { flex-shrink: 0; }
