@@ -1,0 +1,263 @@
+/* ============================================================
+   以我APP · 基础样式与 6 套主题
+   所有页面必须引用本文件，颜色一律使用 CSS 变量
+   ============================================================ */
+
+/* ---------- Reset ---------- */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "HarmonyOS Sans SC",
+    "Source Han Sans SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+img { max-width: 100%; display: block; }
+a { color: inherit; text-decoration: none; }
+button { font: inherit; color: inherit; background: none; border: none; cursor: pointer; }
+input, textarea, select { font: inherit; color: inherit; }
+ul, ol { list-style: none; }
+:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; border-radius: 6px; }
+::selection { background: var(--primary-soft); }
+
+/* ---------- 主题令牌 ---------- */
+:root,
+[data-theme="red"] {
+  color-scheme: light;
+  --primary: #c45e4a;
+  --primary-strong: #a33b2c;
+  --primary-soft: #f7e7e2;
+  --grad: linear-gradient(135deg, #df8a70 0%, #c45e4a 55%, #a33b2c 100%);
+  --bg: #faf5ef;
+  --card: #fffdfa;
+  --card-2: #f4ece2;
+  --text: #2e2620;
+  --text-2: #74685d;
+  --text-3: #a89a8b;
+  --line: #efe4d6;
+  --line-soft: #f6efe5;
+  --nav-bg: rgba(255, 253, 250, 0.88);
+  --shadow-sm: 0 2px 10px rgba(148, 92, 58, 0.07);
+  --shadow: 0 8px 28px rgba(148, 92, 58, 0.10);
+  --on-primary: #ffffff;
+}
+
+[data-theme="green"] {
+  color-scheme: light;
+  --primary: #4d8f6e;
+  --primary-strong: #356f55;
+  --primary-soft: #e3f0e8;
+  --grad: linear-gradient(135deg, #7cbd98 0%, #4d8f6e 55%, #356f55 100%);
+  --bg: #f3f8f3;
+  --card: #fbfffb;
+  --card-2: #e9f1ea;
+  --text: #24302a;
+  --text-2: #6a7a70;
+  --text-3: #9fb0a4;
+  --line: #e0ebe2;
+  --line-soft: #edf4ee;
+  --nav-bg: rgba(255, 255, 253, 0.86);
+  --shadow-sm: 0 2px 10px rgba(58, 110, 82, 0.08);
+  --shadow: 0 8px 28px rgba(58, 110, 82, 0.11);
+  --on-primary: #ffffff;
+}
+
+[data-theme="gold"] {
+  color-scheme: light;
+  --primary: #a5791a;
+  --primary-strong: #87611a;
+  --primary-soft: #f8efd3;
+  --grad: linear-gradient(135deg, #e8c76a 0%, #c1932c 55%, #96711e 100%);
+  --bg: #faf6e8;
+  --card: #fffdf5;
+  --card-2: #f3ecd7;
+  --text: #332d1a;
+  --text-2: #7a7153;
+  --text-3: #aa9f7d;
+  --line: #ece2c6;
+  --line-soft: #f5efdd;
+  --nav-bg: rgba(255, 253, 245, 0.88);
+  --shadow-sm: 0 2px 10px rgba(150, 120, 40, 0.08);
+  --shadow: 0 8px 28px rgba(150, 120, 40, 0.12);
+  --on-primary: #ffffff;
+}
+
+[data-theme="orange"] {
+  color-scheme: light;
+  --primary: #d96a33;
+  --primary-strong: #b05126;
+  --primary-soft: #fae8da;
+  --grad: linear-gradient(135deg, #f0a06b 0%, #d96a33 55%, #b05126 100%);
+  --bg: #faf4ec;
+  --card: #fffcf8;
+  --card-2: #f5eadd;
+  --text: #32261c;
+  --text-2: #77685a;
+  --text-3: #ab9a87;
+  --line: #efe2d2;
+  --line-soft: #f7efe4;
+  --nav-bg: rgba(255, 252, 248, 0.87);
+  --shadow-sm: 0 2px 10px rgba(170, 100, 50, 0.08);
+  --shadow: 0 8px 28px rgba(170, 100, 50, 0.12);
+  --on-primary: #ffffff;
+}
+
+[data-theme="blue"] {
+  color-scheme: light;
+  --primary: #3d7fc4;
+  --primary-strong: #2f6399;
+  --primary-soft: #e2edf8;
+  --grad: linear-gradient(135deg, #74a9de 0%, #3d7fc4 55%, #2f6399 100%);
+  --bg: #f2f6fb;
+  --card: #fdfefe;
+  --card-2: #e9f0f7;
+  --text: #223140;
+  --text-2: #64778a;
+  --text-3: #9db0c0;
+  --line: #e1e9f2;
+  --line-soft: #edf2f8;
+  --nav-bg: rgba(253, 254, 255, 0.86);
+  --shadow-sm: 0 2px 10px rgba(48, 100, 160, 0.08);
+  --shadow: 0 8px 28px rgba(48, 100, 160, 0.12);
+  --on-primary: #ffffff;
+}
+
+[data-theme="purple"] {
+  color-scheme: dark;
+  --primary: #a78bfa;
+  --primary-strong: #8b5cf6;
+  --primary-soft: rgba(139, 92, 246, 0.18);
+  --grad: linear-gradient(135deg, #8b5cf6 0%, #6d28d9 100%);
+  --bg: #16141f;
+  --card: #211e2e;
+  --card-2: #2a2637;
+  --text: #ece9f4;
+  --text-2: #a49ec0;
+  --text-3: #6f6a8a;
+  --line: rgba(236, 233, 244, 0.10);
+  --line-soft: rgba(236, 233, 244, 0.07);
+  --nav-bg: rgba(26, 23, 37, 0.92);
+  --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.30);
+  --shadow: 0 8px 28px rgba(0, 0, 0, 0.38);
+  --on-primary: #ffffff;
+}
+
+/* 全局语义色（不随主题变化） */
+:root {
+  --success: #2f9e6e;
+  --warning: #e0a02c;
+  --danger: #d9534f;
+  --danger-soft: #fbe9e8;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --radius-sm: 10px;
+  --fs-xs: 12px;
+  --fs-sm: 13px;
+  --fs-base: 15px;
+  --fs-lg: 18px;
+  --fs-xl: 22px;
+  --fs-xxl: 28px;
+}
+
+/* ---------- 排版工具 ---------- */
+h1, h2, h3 { font-weight: 700; line-height: 1.3; }
+.num { font-variant-numeric: tabular-nums; font-feature-settings: "tnum"; letter-spacing: 0.02em; }
+.txt-2 { color: var(--text-2); }
+.txt-3 { color: var(--text-3); }
+.txt-primary { color: var(--primary); }
+.txt-sm { font-size: var(--fs-sm); }
+.txt-xs { font-size: var(--fs-xs); }
+.txt-lg { font-size: var(--fs-lg); }
+.txt-xl { font-size: var(--fs-xl); }
+.bold { font-weight: 700; }
+.ellipsis { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.clamp-2 {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+
+/* ---------- 布局工具 ---------- */
+.flex { display: flex; }
+.flex-col { display: flex; flex-direction: column; }
+.items-center { align-items: center; }
+.justify-center { justify-content: center; }
+.between { display: flex; align-items: center; justify-content: space-between; }
+.wrap { flex-wrap: wrap; }
+.gap-6 { gap: 6px; }
+.gap-8 { gap: 8px; }
+.gap-10 { gap: 10px; }
+.gap-12 { gap: 12px; }
+.gap-16 { gap: 16px; }
+.gap-20 { gap: 20px; }
+.flex-1 { flex: 1; min-width: 0; }
+.mt-8 { margin-top: 8px; }
+.mt-12 { margin-top: 12px; }
+.mt-16 { margin-top: 16px; }
+.mt-20 { margin-top: 20px; }
+.mb-8 { margin-bottom: 8px; }
+.mb-12 { margin-bottom: 12px; }
+.mb-16 { margin-bottom: 16px; }
+.grid-2 { display: grid; grid-template-columns: repeat(2, 1fr); }
+.grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); }
+.grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); }
+
+/* 横向滚动容器 */
+.h-scroll {
+  display: flex; gap: 12px; overflow-x: auto; scrollbar-width: none;
+  -webkit-overflow-scrolling: touch; padding-bottom: 4px;
+}
+.h-scroll::-webkit-scrollbar { display: none; }
+
+/* 手机壳页面容器（用户端） */
+.page {
+  max-width: 520px; margin: 0 auto; min-height: 100dvh;
+  background: var(--bg); position: relative;
+}
+@media (min-width: 600px) {
+  body { background: #e9e4dc; }
+  [data-theme="purple"] body { background: #0d0b13; }
+  .page { box-shadow: 0 0 70px rgba(60, 40, 20, 0.16); }
+}
+
+/* 内容区统一内边距（避开顶栏与底部 Tab） */
+.page-body { padding: 14px 16px calc(96px + env(safe-area-inset-bottom, 0px)); }
+.page-body.no-tab { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
+
+/* ---------- 桌面端内容布局增强（≥960px，配合侧边导航；.page-body 前缀提升优先级） ---------- */
+@media (min-width: 960px) {
+  .page-body .func-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; }
+  .page-body .reco-grid { grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 14px; }
+  .page-body .theme-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
+  .page-body .avatar-grid { grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 14px; }
+  .page-body .sport-grid { grid-template-columns: repeat(auto-fill, minmax(132px, 1fr)); gap: 14px; }
+  .page-body .cat-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 8px 10px; }
+  .page-body .cal-grid { max-width: 600px; gap: 12px 8px; }
+
+  /* 动态流桌面双列（≥1440px 三列） */
+  .page-body .moments-feed {
+    display: grid; grid-template-columns: repeat(2, 1fr);
+    gap: 16px; align-items: start;
+  }
+  .page-body .moments-feed .moment-card { margin-bottom: 0; }
+}
+
+@media (min-width: 1440px) {
+  .page-body .moments-feed { grid-template-columns: repeat(3, 1fr); }
+}
+
+/* ---------- 动效与无障碍 ---------- */
+.fade-in { animation: yfade 0.35s cubic-bezier(0.22, 0.9, 0.36, 1) both; }
+@keyframes yfade {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.pop-in { animation: pop 0.28s cubic-bezier(0.34, 1.4, 0.64, 1) both; }
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
