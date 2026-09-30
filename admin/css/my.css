@@ -1,0 +1,10 @@
+/* 我的 */
+.profile-card { display: flex; align-items: center; gap: 18px; }
+.profile-main { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.profile-name { line-height: 1.2; }
+.profile-meta { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.perm-chips { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.tag.sm { padding: 2px 9px; font-size: 11px; border-radius: 999px; }
+.btn-row { display: flex; gap: 12px; margin-top: 16px; }
+.btn-row .btn { flex: 1; }
+.note-card { margin-top: 16px; background: var(--card-2); box-shadow: none; }
