@@ -1,0 +1,25 @@
+/* ============================================================
+   主题页专属样式
+   ============================================================ */
+
+.intro-title { color: var(--primary); }
+
+.theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.theme-card {
+  position: relative; background: var(--card); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm); overflow: hidden; cursor: pointer;
+  border: 2px solid transparent; transition: transform 0.16s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.theme-card:active { transform: scale(0.97); }
+.theme-card.on { border-color: var(--primary); }
+.theme-swatch { height: 56px; }
+.theme-info { padding: 12px 13px 14px; }
+.theme-name-row { display: flex; align-items: center; gap: 6px; }
+.theme-check {
+  position: absolute; top: 8px; right: 8px; width: 22px; height: 22px;
+  border-radius: 50%; background: var(--primary); color: var(--on-primary);
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: var(--shadow-sm);
+}
+.theme-src { text-align: center; }
