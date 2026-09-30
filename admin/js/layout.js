@@ -43,8 +43,8 @@ function renderText(body) {
 
   body.innerHTML = `
     <div class="card">
-      <div class="field"><label>App 名称</label><input class="input" id="f-appname" value="${UI.esc(st.appName)}"></div>
-      <div class="field"><label>首页问候语</label><input class="input" id="f-greeting" value="${UI.esc(st.homeGreeting)}"><div class="hint">支持 {nickname} 占位，显示时替换为用户昵称</div></div>
+      <div class="field"><label>App 名称</label><input class="input" id="f-appname" placeholder="例如：以我" value="${UI.esc(st.appName)}"></div>
+      <div class="field"><label>首页问候语</label><input class="input" id="f-greeting" placeholder="例如：你好，{nickname}，新的一天也要做自己" value="${UI.esc(st.homeGreeting)}"><div class="hint">支持 {nickname} 占位，显示时替换为用户昵称</div></div>
       <div class="field"><label>底部 Tab 文字</label>
         <div class="grid-4 tl-grid">
           ${names.map((n, i) => `<div><div class="tl-label txt-xs txt-3">${n}</div><input class="input" data-tablabel="${i}" value="${UI.esc(tabLabels[i] || "")}"></div>`).join("")}
