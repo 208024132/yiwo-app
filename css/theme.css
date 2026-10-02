@@ -8,11 +8,15 @@
 .theme-card {
   position: relative; background: var(--card); border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm); overflow: hidden; cursor: pointer;
-  border: 2px solid transparent; transition: transform 0.16s ease;
+  border: 2px solid transparent; transition: transform 0.16s ease, box-shadow 0.16s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .theme-card:active { transform: scale(0.97); }
 .theme-card.on { border-color: var(--primary); }
+@media (hover: hover) {
+  .theme-card:hover { transform: translateY(-2px); box-shadow: var(--shadow); }
+  .theme-card.on:hover { transform: none; }
+}
 .theme-swatch { height: 56px; }
 .theme-info { padding: 12px 13px 14px; }
 .theme-name-row { display: flex; align-items: center; gap: 6px; }
