@@ -40,7 +40,7 @@ UserShell.boot({ tab: "my", title: "我的" });
 
     <section class="func-grid" id="func-grid">
       ${orderedFuncs().map(f => `
-        <a class="func-item" href="${f.href}" data-key="${f.key}">
+        <a class="func-item" href="${f.href}" data-key="${f.key}" draggable="false">
           <span class="q-ico" style="background:${f.g}">${f.e}</span>
           <span class="q-name">${f.name}</span>
         </a>`).join("")}
@@ -73,62 +73,117 @@ UserShell.boot({ tab: "my", title: "我的" });
   bindList();
 })();
 
-/* ---------- 长按拖动排序 ---------- */
+/* ---------- 长按拖动排序（跟手幽灵 + FLIP 过渡） ---------- */
 function bindSort() {
   const grid = document.getElementById("func-grid");
   if (!grid) return;
 
-  let drag = null;
+  const HOLD = 240;   // 长按判定时长
+  const TOL = 12;     // 长按成立前允许的手指抖动
+  const items = () => [...grid.querySelectorAll(".func-item")];
+  let st = null;
   let suppressClick = false;
 
-  document.addEventListener("pointermove", e => {
-    if (!drag) return;
-    if (!drag.dragging) {
-      if (Math.abs(e.clientX - drag.startX) > 10 || Math.abs(e.clientY - drag.startY) > 10) {
-        clearTimeout(drag.timer);
-        drag = null;
-      }
-      return;
-    }
-    e.preventDefault();
-    const el = document.elementFromPoint(e.clientX, e.clientY);
-    const target = el && el.closest(".func-item");
-    if (target && target !== drag.item) {
-      const pos = drag.item.compareDocumentPosition(target);
-      if (pos & Node.DOCUMENT_POSITION_FOLLOWING) {
-        grid.insertBefore(drag.item, target.nextSibling);
-      } else {
-        grid.insertBefore(drag.item, target);
-      }
-    }
-  });
+  // 重排后让其余卡片从旧位置平滑滑到新位置（先反转、强制回流、再过渡）
+  function flip(els, before, itemEl) {
+    const moved = [];
+    els.forEach(el => {
+      if (el === itemEl) return;
+      const a = before.get(el);
+      if (!a) return;
+      const b = el.getBoundingClientRect();
+      const dx = a.left - b.left, dy = a.top - b.top;
+      if (!dx && !dy) return;
+      el.style.transition = "none";
+      el.style.transform = `translate(${dx}px, ${dy}px)`;
+      moved.push(el);
+    });
+    if (!moved.length) return;
+    void grid.offsetWidth;                       // 强制回流，让“反转”状态被浏览器确认
+    moved.forEach(el => {
+      el.style.transition = "transform .22s cubic-bezier(.22,.9,.36,1)";
+      el.style.transform = "";
+    });
+  }
 
-  document.addEventListener("pointerup", () => {
-    if (!drag) return;
-    clearTimeout(drag.timer);
-    if (drag.dragging) {
-      drag.item.classList.remove("dragging");
-      suppressClick = true;
-      setTimeout(() => { suppressClick = false; }, 80);
-      const keys = [...grid.querySelectorAll(".func-item")].map(i => i.dataset.key);
-      Store.saveOrder(Store.currentUser().id, keys);
-      UI.toast("已保存排序");
-    }
-    drag = null;
-  });
+  function place(x, y) {
+    const item = st.item;
+    const target = items().find(el => {
+      if (el === item) return false;
+      const r = el.getBoundingClientRect();
+      return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom;
+    });
+    if (!target) return;
+    const r = target.getBoundingClientRect();
+    const ref = x > r.left + r.width / 2 ? target.nextSibling : target;
+    if (ref === item || (ref && ref.previousSibling === item) || (!ref && grid.lastElementChild === item)) return;
+
+    const els = items();
+    const before = new Map(els.map(el => [el, el.getBoundingClientRect()]));
+    item.style.transform = "";                       // 先清掉跟手位移，量出真实布局位置
+    const a = item.getBoundingClientRect();
+    grid.insertBefore(item, ref);
+    const b = item.getBoundingClientRect();
+    st.corrX += a.left - b.left;                     // 补偿重排造成的位移，视觉上不跳动
+    st.corrY += a.top - b.top;
+    flip(els, before, item);
+    item.style.transform = `translate(${st.dx + st.corrX}px, ${st.dy + st.corrY}px) scale(1.04)`;
+  }
+
+  function start() {
+    if (!st || st.dragging) return;
+    st.dragging = true;
+    st.corrX = 0; st.corrY = 0; st.dx = 0; st.dy = 0;
+    st.item.classList.add("dragging");
+    st.item.style.transform = "translate(0px, 0px) scale(1.04)";
+    try { st.item.setPointerCapture(st.pointerId); } catch (err) { /* ignore */ }
+    if (navigator.vibrate) { try { navigator.vibrate(25); } catch (err) { /* ignore */ } }
+  }
+
+  function finish() {
+    if (!st || !st.dragging) { if (st) st = null; return; }
+    const item = st.item;
+    clearTimeout(st.timer);
+    item.classList.remove("dragging");
+    item.style.transform = "";
+    item.style.transition = "";
+    suppressClick = true;
+    setTimeout(() => { suppressClick = false; }, 120);
+    const uid = Store.currentUser() && Store.currentUser().id;
+    if (uid) { Store.saveOrder(uid, items().map(i => i.dataset.key)); UI.toast("已保存排序", "success"); }
+    st = null;
+  }
+
+  grid.addEventListener("dragstart", e => e.preventDefault());
+  grid.addEventListener("contextmenu", e => { if (st && st.dragging) e.preventDefault(); });
+  document.addEventListener("touchmove", e => { if (st && st.dragging) e.preventDefault(); }, { passive: false });
 
   grid.querySelectorAll(".func-item").forEach(item => {
-    item.addEventListener("click", e => { if (suppressClick) e.preventDefault(); });
+    item.setAttribute("draggable", "false");
+    item.addEventListener("click", e => { if (suppressClick) { e.preventDefault(); e.stopPropagation(); } });
     item.addEventListener("pointerdown", e => {
-      if (drag) return;
-      const startX = e.clientX, startY = e.clientY;
-      drag = { item, startX, startY, dragging: false, timer: null };
-      drag.timer = setTimeout(() => {
-        drag.dragging = true;
-        item.classList.add("dragging");
-        if (navigator.vibrate) { try { navigator.vibrate(30); } catch (err) { /* ignore */ } }
-      }, 450);
+      if (e.button != null && e.button !== 0) return;
+      if (st) return;
+      st = { item, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, dragging: false };
+      st.timer = setTimeout(start, HOLD);
     });
+    item.addEventListener("pointermove", e => {
+      if (!st || st.item !== item) return;
+      if (!st.dragging) {
+        if (Math.abs(e.clientX - st.startX) > TOL || Math.abs(e.clientY - st.startY) > TOL) {
+          clearTimeout(st.timer);
+          st = null;
+        }
+        return;
+      }
+      e.preventDefault();
+      st.dx = e.clientX - st.startX;
+      st.dy = e.clientY - st.startY;
+      item.style.transform = `translate(${st.dx + st.corrX}px, ${st.dy + st.corrY}px) scale(1.04)`;
+      place(e.clientX, e.clientY);
+    });
+    item.addEventListener("pointerup", finish);
+    item.addEventListener("pointercancel", finish);
   });
 }
 
