@@ -1,5 +1,5 @@
 /* ============================================================
-   以我APP · 基础样式与 6 套主题
+   以我APP · 基础样式与 11 套主题
    所有页面必须引用本文件，颜色一律使用 CSS 变量
    ============================================================ */
 
@@ -145,6 +145,111 @@ ul, ol { list-style: none; }
   --on-primary: #ffffff;
 }
 
+/* 青柠气泡 · 年轻清爽的青柠绿 */
+[data-theme="lime"] {
+  color-scheme: light;
+  --primary: #6f9c2f;
+  --primary-strong: #557a1f;
+  --primary-soft: #eef7dc;
+  --grad: linear-gradient(135deg, #c6e86a 0%, #8cc63f 55%, #5f9028 100%);
+  --bg: #f8fbef;
+  --card: #fdfffa;
+  --card-2: #eef5e0;
+  --text: #2a3320;
+  --text-2: #6d7a5c;
+  --text-3: #a3b08f;
+  --line: #e6efd6;
+  --line-soft: #f1f6e8;
+  --nav-bg: rgba(253, 255, 250, 0.88);
+  --shadow-sm: 0 2px 10px rgba(110, 150, 40, 0.08);
+  --shadow: 0 8px 28px rgba(110, 150, 40, 0.12);
+  --on-primary: #ffffff;
+}
+
+/* 薄荷微光 · 淡雅清新的薄荷青 */
+[data-theme="mint"] {
+  color-scheme: light;
+  --primary: #2f9e93;
+  --primary-strong: #247d75;
+  --primary-soft: #e0f5f2;
+  --grad: linear-gradient(135deg, #8ee0d6 0%, #3eb8ab 55%, #2c938a 100%);
+  --bg: #f0faf8;
+  --card: #fdfffe;
+  --card-2: #e6f4f1;
+  --text: #1f3330;
+  --text-2: #5d7a76;
+  --text-3: #96b0ac;
+  --line: #dcefeb;
+  --line-soft: #eaf6f3;
+  --nav-bg: rgba(253, 255, 254, 0.86);
+  --shadow-sm: 0 2px 10px rgba(45, 140, 130, 0.08);
+  --shadow: 0 8px 28px rgba(45, 140, 130, 0.12);
+  --on-primary: #ffffff;
+}
+
+/* 玫瑰奶昔 · 柔美甜润的玫瑰粉 */
+[data-theme="rose"] {
+  color-scheme: light;
+  --primary: #d95f8c;
+  --primary-strong: #bf4a76;
+  --primary-soft: #fdeaf1;
+  --grad: linear-gradient(135deg, #f7a8c4 0%, #e0709a 55%, #c94f7d 100%);
+  --bg: #fdf4f7;
+  --card: #fffbfd;
+  --card-2: #f9e7ee;
+  --text: #3a2530;
+  --text-2: #86656f;
+  --text-3: #bda0ab;
+  --line: #f4dfe8;
+  --line-soft: #fbeef3;
+  --nav-bg: rgba(255, 251, 253, 0.88);
+  --shadow-sm: 0 2px 10px rgba(200, 90, 140, 0.09);
+  --shadow: 0 8px 28px rgba(200, 90, 140, 0.13);
+  --on-primary: #ffffff;
+}
+
+/* 雾灰中性 · 低饱和石墨灰，中性百搭 */
+[data-theme="slate"] {
+  color-scheme: light;
+  --primary: #5c6b80;
+  --primary-strong: #445063;
+  --primary-soft: #e9edf2;
+  --grad: linear-gradient(135deg, #94a3b8 0%, #64748b 55%, #475569 100%);
+  --bg: #f4f6f8;
+  --card: #ffffff;
+  --card-2: #eceff3;
+  --text: #222a33;
+  --text-2: #5c6672;
+  --text-3: #97a1ad;
+  --line: #e3e8ed;
+  --line-soft: #eef1f4;
+  --nav-bg: rgba(255, 255, 255, 0.86);
+  --shadow-sm: 0 2px 10px rgba(70, 90, 115, 0.08);
+  --shadow: 0 8px 28px rgba(70, 90, 115, 0.12);
+  --on-primary: #ffffff;
+}
+
+/* 奶油杏茶 · 温柔质感的奶油杏 */
+[data-theme="cream"] {
+  color-scheme: light;
+  --primary: #b98a5c;
+  --primary-strong: #9c6f43;
+  --primary-soft: #f6ece0;
+  --grad: linear-gradient(135deg, #e6c9a3 0%, #c39a6b 55%, #a67c4f 100%);
+  --bg: #faf6f0;
+  --card: #fffdfa;
+  --card-2: #f3ebdf;
+  --text: #322a20;
+  --text-2: #776b5b;
+  --text-3: #ab9d8a;
+  --line: #efe4d4;
+  --line-soft: #f7f0e6;
+  --nav-bg: rgba(255, 253, 250, 0.88);
+  --shadow-sm: 0 2px 10px rgba(165, 125, 80, 0.08);
+  --shadow: 0 8px 28px rgba(165, 125, 80, 0.12);
+  --on-primary: #ffffff;
+}
+
 /* 全局语义色（不随主题变化） */
 :root {
   --success: #2f9e6e;
@@ -218,6 +323,11 @@ h1, h2, h3 { font-weight: 700; line-height: 1.3; }
 @media (min-width: 600px) {
   body { background: #e9e4dc; }
   [data-theme="purple"] body { background: #0d0b13; }
+  [data-theme="lime"] body { background: #e9f0d6; }
+  [data-theme="mint"] body { background: #ddf0ec; }
+  [data-theme="rose"] body { background: #f6e2ea; }
+  [data-theme="slate"] body { background: #e4e8ed; }
+  [data-theme="cream"] body { background: #f0e6d8; }
   .page { box-shadow: 0 0 70px rgba(60, 40, 20, 0.16); }
 }
 
