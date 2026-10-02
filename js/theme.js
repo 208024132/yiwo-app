@@ -1,5 +1,5 @@
 /* ============================================================
-   以我APP · 主题管理器（6 套主题）
+   以我APP · 主题管理器（11 套主题）
    优先级：设备本地选择 > 后台默认主题 > 以我红(red)
    ============================================================ */
 window.Theme = (() => {
@@ -11,6 +11,12 @@ window.Theme = (() => {
     { id: "orange", name: "蜜橘橙", desc: "元气满满的橘色", swatch: ["#f0a06b", "#d96a33", "#b05126"], dark: false, bg: "#faf4ec" },
     { id: "blue",   name: "海盐蓝", desc: "安静清爽的海蓝", swatch: ["#74a9de", "#3d7fc4", "#2f6399"], dark: false, bg: "#f2f6fb" },
     { id: "purple", name: "星夜紫", desc: "深邃暗色星夜", swatch: ["#8b5cf6", "#6d28d9", "#4c1d95"], dark: true, bg: "#16141f" },
+    /* —— 新增 5 套：年轻 / 小清新 / 女性 / 中性 —— */
+    { id: "lime",  name: "青柠气泡", desc: "清爽青柠绿 · 年轻活力", swatch: ["#c6e86a", "#8cc63f", "#5f9028"], dark: false, bg: "#f8fbef" },
+    { id: "mint",  name: "薄荷微光", desc: "淡雅薄荷青 · 小清新", swatch: ["#8ee0d6", "#3eb8ab", "#2c938a"], dark: false, bg: "#f0faf8" },
+    { id: "rose",  name: "玫瑰奶昔", desc: "柔美玫瑰粉 · 甜美女性", swatch: ["#f7a8c4", "#e0709a", "#c94f7d"], dark: false, bg: "#fdf4f7" },
+    { id: "slate", name: "雾灰中性", desc: "低饱和石墨灰 · 中性百搭", swatch: ["#94a3b8", "#64748b", "#475569"], dark: false, bg: "#f4f6f8" },
+    { id: "cream", name: "奶油杏茶", desc: "温柔奶油杏 · 质感中性", swatch: ["#e6c9a3", "#c39a6b", "#a67c4f"], dark: false, bg: "#faf6f0" },
   ];
 
   function current() {
