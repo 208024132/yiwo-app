@@ -3,6 +3,17 @@
 /* 避开底部输入条遮挡 */
 .page.chat-page .page-body { padding-bottom: calc(86px + env(safe-area-inset-bottom, 0px)); }
 
+/* 顶栏可点击进入好友资料 */
+.app-header .head-title.chat-head { font-size: var(--fs-base); }
+.chat-head-link {
+  display: inline-flex; align-items: center; gap: 8px; max-width: 100%;
+  padding: 2px 10px 2px 2px; border-radius: 999px; color: var(--text-1);
+  transition: background 0.15s ease;
+}
+.chat-head-link:active { background: var(--card-2); }
+.chat-head-link .chat-head-name { font-weight: 700; max-width: 46vw; }
+.chat-head-link .avatar { flex-shrink: 0; }
+
 .chat-time {
   text-align: center; font-size: 11px; color: var(--text-3); margin: 16px 0 8px;
 }
