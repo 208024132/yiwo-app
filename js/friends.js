@@ -107,6 +107,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
   }
 
   function render() {
+    closeSwipe();
     body.innerHTML = navHtml() + `<div id="friends-content"></div>`;
     bindNavSort();
     if (tab === "contacts") renderContacts();
@@ -115,16 +116,21 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
   }
 
   /* ---------- 联系人：新的朋友 + 好友分组 ---------- */
+  const nameOf = fid => Store.displayName(u.id, fid);
+
   function friendRow(c) {
     const last = c.last;
     const text = last ? last.text : "还没有聊过，打个招呼吧";
     return `<div class="list-item tap" data-chat="${c.user.id}">
       ${UI.avatarEl(c.user, "md")}
       <div class="li-main">
-        <div class="li-title ellipsis">${UI.esc(c.user.nickname)}</div>
+        <div class="li-title ellipsis">${UI.esc(nameOf(c.user.id))}</div>
         <div class="li-sub ellipsis">${UI.esc(text)}</div>
       </div>
-      <button class="btn ghost sm grp-btn" data-setgroup="${c.user.id}">分组</button>
+      <div class="li-acts">
+        <button class="btn ghost sm" data-remark="${c.user.id}">备注</button>
+        <button class="btn ghost sm" data-setgroup="${c.user.id}">分组</button>
+      </div>
     </div>`;
   }
 
@@ -169,7 +175,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
     const q = kw.trim().toLowerCase();
 
     if (q) {
-      const hit = cons.filter(c => (c.user.nickname + " " + (c.last ? c.last.text : "")).toLowerCase().includes(q));
+      const hit = cons.filter(c => (nameOf(c.user.id) + " " + (c.last ? c.last.text : "")).toLowerCase().includes(q));
       box.innerHTML = hit.length
         ? `<div class="list mt-8">${hit.map(friendRow).join("")}</div>`
         : UI.emptyBox("🔍", "没有找到匹配的好友");
@@ -185,6 +191,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
           <span class="grp-name ellipsis">${UI.esc(g.name)}</span>
           <span class="grp-count">${members.length}</span>
           <button class="icon-btn grp-edit" data-gedit="${g.id}" aria-label="重命名分组">${UI.icon("edit", 15)}</button>
+          <button class="icon-btn grp-del" data-gdel="${g.id}" aria-label="删除分组">${UI.icon("trash", 15)}</button>
         </div>
         ${open ? (members.length
           ? `<div class="list">${members.map(friendRow).join("")}</div>`
@@ -230,26 +237,121 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
   function updateMessages() {
     const box = document.getElementById("msg-box");
     if (!box) return;
+    closeSwipe();
     const q = mkw.trim().toLowerCase();
-    let list = Store.getConversations(u.id).slice()
+    let list = Store.getConversations(u.id).filter(c => !c.hidden || c.unread > 0)
       .sort((a, b) => (b.last ? b.last.t : 0) - (a.last ? a.last.t : 0));
-    if (q) list = list.filter(c => (c.user.nickname + " " + (c.last ? c.last.text : "")).toLowerCase().includes(q));
+    if (q) list = list.filter(c => (nameOf(c.user.id) + " " + (c.last ? c.last.text : "")).toLowerCase().includes(q));
     box.innerHTML = list.length
       ? `<div class="list mt-8">${list.map(c => {
           const last = c.last;
-          return `<div class="list-item tap" data-chat="${c.user.id}">
-            ${UI.avatarEl(c.user, "md")}
-            <div class="li-main">
-              <div class="li-title ellipsis">${UI.esc(c.user.nickname)}</div>
-              <div class="li-sub ellipsis">${UI.esc(last ? last.text : "还没有聊过，打个招呼吧")}</div>
+          return `<div class="sw-row" data-sw>
+            <div class="sw-acts">
+              <button class="sw-act" data-clear="${c.user.id}">清空记录</button>
+              <button class="sw-act danger" data-delrec="${c.user.id}">删除记录</button>
             </div>
-            <div class="li-right">
-              ${last ? `<div class="li-time">${UI.timeAgo(last.t)}</div>` : ""}
-              ${c.unread > 0 ? `<span class="badge">${c.unread}</span>` : ""}
+            <div class="list-item tap sw-body" data-chat="${c.user.id}">
+              ${UI.avatarEl(c.user, "md")}
+              <div class="li-main">
+                <div class="li-title ellipsis">${UI.esc(nameOf(c.user.id))}</div>
+                <div class="li-sub ellipsis">${UI.esc(last ? last.text : "还没有聊过，打个招呼吧")}</div>
+              </div>
+              <div class="li-right">
+                ${last ? `<div class="li-time">${UI.timeAgo(last.t)}</div>` : ""}
+                ${c.unread > 0 ? `<span class="badge">${c.unread}</span>` : ""}
+              </div>
             </div>
           </div>`;
         }).join("")}</div>`
       : UI.emptyBox("💬", q ? "没有找到相关消息" : "还没有聊天记录", "去联系人里找好友聊聊吧");
+    bindSwipe();
+  }
+
+  /* ---------- 消息行滑动操作（清空 / 删除记录） ---------- */
+  let openSw = null, lastSwipeEnd = 0;
+
+  function closeSwipe() {
+    if (!openSw) return;
+    const s = openSw;
+    openSw = null;
+    s.body.style.transform = "";
+    s.wrap.classList.remove("open", "from-left");
+  }
+
+  function bindSwipe() {
+    document.querySelectorAll(".sw-row").forEach(wrap => {
+      const body = wrap.querySelector(".sw-body");
+      const acts = wrap.querySelector(".sw-acts");
+      let st = null;
+
+      body.addEventListener("pointerdown", e => {
+        if (e.button != null && e.button !== 0) return;
+        if (openSw && openSw.wrap !== wrap) closeSwipe();
+        st = {
+          x: e.clientX, y: e.clientY, horiz: false, dx: 0,
+          base: wrap.classList.contains("open") ? (wrap.classList.contains("from-left") ? acts.offsetWidth : -acts.offsetWidth) : 0,
+        };
+        body.style.transition = "none";
+      });
+      body.addEventListener("pointermove", e => {
+        if (!st) return;
+        const dx = e.clientX - st.x, dy = e.clientY - st.y;
+        if (!st.horiz) {
+          // 纵向意图 → 交还给页面滚动
+          if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { st = null; body.style.transition = ""; return; }
+          if (Math.abs(dx) > 8) st.horiz = true;
+        }
+        if (!st.horiz) return;
+        const w = acts.offsetWidth;
+        st.dx = Math.max(-w, Math.min(w, st.base + dx));
+        body.style.transform = `translateX(${st.dx}px)`;
+        if (e.cancelable) e.preventDefault();
+      });
+      const end = () => {
+        if (!st) return;
+        const w = acts.offsetWidth;
+        const opened = st.horiz && Math.abs(st.dx) > w * 0.45;
+        body.style.transition = "";
+        if (opened) {
+          wrap.classList.add("open");
+          wrap.classList.toggle("from-left", st.dx > 0);   // 右滑 → 操作区在左侧
+        } else {
+          wrap.classList.remove("open", "from-left");
+        }
+        body.style.transform = opened ? `translateX(${st.dx > 0 ? w : -w}px)` : "";
+        openSw = opened ? { wrap, body } : (openSw && openSw.wrap === wrap ? null : openSw);
+        if (st.horiz) lastSwipeEnd = Date.now();
+        st = null;
+      };
+      body.addEventListener("pointerup", end);
+      body.addEventListener("pointercancel", end);
+      body.addEventListener("click", e => {
+        if (wrap.classList.contains("open") || Date.now() - lastSwipeEnd < 260) {
+          e.preventDefault(); e.stopPropagation();
+          closeSwipe();
+        }
+      }, true);
+    });
+  }
+
+  function clearRec(fid) {
+    const nm = nameOf(fid);
+    UI.confirm("清空聊天记录", "将清空与「" + nm + "」的全部聊天内容，好友关系保留。").then(ok => {
+      if (!ok) return;
+      Store.clearChat(u.id, fid);
+      UI.toast("已清空聊天记录", "success");
+      updateMessages();
+    });
+  }
+
+  function deleteRec(fid) {
+    const nm = nameOf(fid);
+    UI.confirm("删除聊天记录", "将删除与「" + nm + "」的会话，并从消息列表移除（好友关系保留）。", { okText: "删除", danger: true }).then(ok => {
+      if (!ok) return;
+      Store.deleteChat(u.id, fid);
+      UI.toast("已删除聊天记录", "success");
+      updateMessages();
+    });
   }
 
   /* ---------- 动态 ---------- */
@@ -283,12 +385,47 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
     });
   }
 
+  // 备注名字（留空则恢复昵称）
+  function remarkFriend(fid) {
+    const nick = (Store.getUser(fid) || {}).nickname || "好友";
+    UI.promptInput({
+      title: "设置备注",
+      placeholder: "备注名（最多 12 个字），留空恢复昵称",
+      value: Store.remarkOf(u.id, fid), max: 12,
+    }).then(name => {
+      if (name == null) return;
+      const r = Store.setRemark(u.id, fid, name);
+      if (!r.ok) { UI.toast(r.msg, "warn"); return; }
+      UI.toast(r.name ? "备注已保存" : "已恢复昵称「" + nick + "」", "success");
+      refreshLists();
+    });
+  }
+
+  // 删除分组（组内好友自动移到其他分组）
+  function removeGroup(gid) {
+    const g = Store.getGroups(u.id).find(x => x.id === gid);
+    if (!g) return;
+    const n = Store.getConversations(u.id).filter(c => Store.groupOf(u.id, c.user.id) === gid).length;
+    const tip = n ? `该分组下的 ${n} 位好友会自动移动到其他分组。` : "该分组下暂无好友。";
+    UI.confirm("删除分组「" + g.name + "」", tip + "删除后不可恢复。", { okText: "删除", danger: true }).then(ok => {
+      if (!ok) return;
+      const r = Store.delGroup(u.id, gid);
+      if (!r.ok) { UI.toast(r.msg, "warn"); return; }
+      UI.toast("已删除分组「" + r.name + "」", "success");
+      updateContacts();
+    });
+  }
+
+  function refreshLists() {
+    if (document.getElementById("groups-box")) updateContacts();
+    else if (document.getElementById("msg-box")) updateMessages();
+  }
+
   function pickGroup(fid) {
     const cur = Store.groupOf(u.id, fid);
-    const fu = Store.getUser(fid);
     const s = UI.sheet(`
       <div class="sheet-head"><h3>设置分组</h3><button class="icon-btn" data-close>${UI.icon("close", 18)}</button></div>
-      <div class="txt-sm txt-2 grp-tip">将「${UI.esc(fu ? fu.nickname : "好友")}」移动到：</div>
+      <div class="txt-sm txt-2 grp-tip">将「${UI.esc(nameOf(fid))}」移动到：</div>
       <div class="list">
         ${Store.getGroups(u.id).map(g => `<div class="list-item tap" data-pick="${g.id}">
           <span class="li-main"><span class="li-title">${UI.esc(g.name)}</span></span>
@@ -413,6 +550,9 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
 
   /* ---------- 事件委托 ---------- */
   body.addEventListener("click", e => {
+    const remk = e.target.closest("[data-remark]");
+    if (remk) { remarkFriend(remk.dataset.remark); return; }
+
     const setg = e.target.closest("[data-setgroup]");
     if (setg) { pickGroup(setg.dataset.setgroup); return; }
 
@@ -422,6 +562,15 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
       if (g) doRename(g.id, g.name);
       return;
     }
+
+    const gdel = e.target.closest("[data-gdel]");
+    if (gdel) { removeGroup(gdel.dataset.gdel); return; }
+
+    const clr = e.target.closest("[data-clear]");
+    if (clr) { clearRec(clr.dataset.clear); return; }
+
+    const delr = e.target.closest("[data-delrec]");
+    if (delr) { deleteRec(delr.dataset.delrec); return; }
 
     const ghead = e.target.closest("[data-ghead]");
     if (ghead) { const id = ghead.dataset.ghead; collapsed[id] = !collapsed[id]; updateContacts(); return; }
