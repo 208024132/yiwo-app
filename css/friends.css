@@ -49,6 +49,28 @@
 .grp .list { border-radius: 0; box-shadow: none; }
 .grp-empty { padding: 16px; text-align: center; font-size: var(--fs-xs); color: var(--text-3); }
 .grp-btn { flex-shrink: 0; }
+.grp-del { width: 30px; height: 30px; color: var(--danger); }
+
+/* 好友行的「备注 / 分组」按钮组 */
+.li-acts { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+.li-acts .btn { padding: 5px 11px; }
+
+/* 消息行滑动操作 */
+.sw-row { position: relative; overflow: hidden; border-bottom: 1px solid var(--line-soft); }
+.sw-row:last-child { border-bottom: none; }
+.sw-row .list-item { border-bottom: none; touch-action: pan-y; }
+.sw-acts { position: absolute; top: 0; bottom: 0; right: 0; display: flex; }
+.sw-row.from-left .sw-acts { right: auto; left: 0; }
+.sw-act {
+  width: 76px; border: none; display: flex; align-items: center; justify-content: center;
+  padding: 0; color: #fff; font-size: var(--fs-xs); font-weight: 600; background: #e6a23c;
+  -webkit-tap-highlight-color: transparent;
+}
+.sw-act.danger { background: var(--danger); }
+.sw-body {
+  position: relative; z-index: 1; background: var(--card);
+  transition: transform 0.22s cubic-bezier(0.22, 0.9, 0.36, 1);
+}
 .grp-tip { margin: 2px 2px 12px; }
 .grp-check { color: var(--primary); font-weight: 700; flex-shrink: 0; }
 
