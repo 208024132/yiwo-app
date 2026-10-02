@@ -12,6 +12,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
     { key: "private", name: "仅自己" },
   ];
   const privName = key => (PRIVACY.find(p => p.key === key) || {}).name || key;
+  const dname = id => Store.displayName(u.id, id);   // 优先备注名
   const PRESET_PHOTOS = [
     { g: "linear-gradient(135deg,#f2994a,#ef5e47)", e: "🌇" },
     { g: "linear-gradient(135deg,#56ccf2,#2f80ed)", e: "🌊" },
@@ -35,7 +36,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
     if (m.orig) {
       const orig = findOriginal(m.orig.id);
       const oau = Store.getUser(m.orig.uid);
-      content += `<div class="m-repost-tip">转发了 ${UI.esc(oau ? oau.nickname : "该用户")} 的动态</div>`;
+      content += `<div class="m-repost-tip">转发了 ${UI.esc(oau ? dname(oau.id) : "该用户")} 的动态</div>`;
       if (orig) {
         const op = orig.photos && orig.photos[0];
         content += `<div class="m-repost-card">
@@ -53,7 +54,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
         <div class="m-head">
           <span class="m-ava">${UI.avatarEl(au, "md")}</span>
           <div class="m-head-main">
-            <div class="m-name ellipsis">${UI.esc(au.nickname)}</div>
+            <div class="m-name ellipsis">${UI.esc(m.uid ? dname(m.uid) : au.nickname)}</div>
             <div class="m-time">${UI.timeAgo(m.t)}${m.privacy !== "public" ? ` · ${privName(m.privacy)}` : ""}</div>
           </div>
           <button class="icon-btn" data-more="${m.id}">${UI.icon("more", 20)}</button>
@@ -64,6 +65,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
           <button class="m-action" data-comment="${m.id}">${UI.icon("comment", 19)}${m.comments.length ? `<span class="num">${m.comments.length}</span>` : ""}</button>
           ${m.reposts ? `<span class="m-repost-count">${UI.icon("share", 16)}${m.reposts}</span>` : ""}
         </div>
+        ${m.likes.length ? `<div class="m-likers txt-xs txt-3">❤️ ${m.likes.map(x => UI.esc(dname(x))).join("、")}</div>` : ""}
       </div>`;
   }
 
@@ -107,7 +109,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
           return `<div class="cmt-item">
             <span>${UI.avatarEl(cu, "sm")}</span>
             <div class="cmt-main">
-              <div class="cmt-name">${UI.esc(cu ? cu.nickname : "用户")}</div>
+              <div class="cmt-name">${UI.esc(cu ? dname(cu.id) : "用户")}</div>
               <div class="cmt-text">${UI.esc(c.text)}</div>
             </div>
             <span class="cmt-time">${UI.timeAgo(c.t)}</span>
