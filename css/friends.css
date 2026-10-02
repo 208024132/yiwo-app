@@ -116,6 +116,7 @@
 .m-act .m-act-ico { display: flex; }
 .m-act.on { color: #e74c5e; }
 .m-act.on .m-act-ico { color: #e74c5e; }
+.m-likers { margin-top: 6px; line-height: 1.5; }
 
 /* 评论弹层 */
 .cmt-list {
