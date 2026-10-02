@@ -208,6 +208,8 @@ window.Store = (() => {
       groups: {},
       friendGroup: {},
       friendNav: {},
+      remark: {},
+      chatHidden: {},
       settings: {
         appName: "以我",
         homeGreeting: "你好，{nickname} 👋",
@@ -229,7 +231,13 @@ window.Store = (() => {
   try {
     db = JSON.parse(localStorage.getItem(KEY));
   } catch (e) { db = null; }
-  if (!db || !db.users) { db = seed(); persist(); }
+  let dirty = !db || !db.users;
+  if (!db || !db.users) db = seed();
+  // 旧数据补齐新增字段
+  ["remark", "chatHidden", "groups", "friendGroup", "friendNav"].forEach(k => {
+    if (!db[k]) { db[k] = {}; dirty = true; }
+  });
+  if (dirty) persist();
 
   function persist() { localStorage.setItem(KEY, JSON.stringify(db)); }
   function save() { persist(); }
@@ -338,6 +346,7 @@ window.Store = (() => {
   function deleteFriend(uid, fid) {
     db.friends = db.friends.filter(f => !((f.a === uid && f.b === fid) || (f.a === fid && f.b === uid)));
     if (db.friendGroup && db.friendGroup[uid]) delete db.friendGroup[uid][fid];
+    if (db.remark && db.remark[uid]) delete db.remark[uid][fid];
     persist();
   }
 
@@ -347,20 +356,40 @@ window.Store = (() => {
     return c ? c.msgs : [];
   }
   function getConversations(uid) {
+    const hid = (db.chatHidden && db.chatHidden[uid]) || [];
     return listFriends(uid).map(f => {
       const msgs = getMessages(uid, f.user.id);
       return {
         user: f.user,
         last: msgs.length ? msgs[msgs.length - 1] : null,
         unread: msgs.filter(m => m.from === f.user.id && !m.read).length,
+        hidden: hid.includes(f.user.id),
       };
     });
+  }
+  // 清空聊天内容，保留会话
+  function clearChat(uid, fid) {
+    const c = db.chats.find(x => (x.a === uid && x.b === fid) || (x.a === fid && x.b === uid));
+    if (c) { c.msgs = []; persist(); }
+  }
+  // 删除会话：清空消息 + 从消息列表移除（好友关系保留）
+  function deleteChat(uid, fid) {
+    const c = db.chats.find(x => (x.a === uid && x.b === fid) || (x.a === fid && x.b === uid));
+    if (c) c.msgs = [];
+    if (!db.chatHidden) db.chatHidden = {};
+    if (!db.chatHidden[uid]) db.chatHidden[uid] = [];
+    if (!db.chatHidden[uid].includes(fid)) db.chatHidden[uid].push(fid);
+    persist();
   }
   function sendMessage(uid, fid, text) {
     const msg = { id: "m" + Date.now(), from: uid, text, t: Date.now(), read: true };
     let c = db.chats.find(x => (x.a === uid && x.b === fid) || (x.a === fid && x.b === uid));
     if (!c) { c = { a: uid, b: fid, msgs: [] }; db.chats.push(c); }
     c.msgs.push(msg);
+    // 有新消息则让会话重新出现在消息列表
+    if (db.chatHidden && db.chatHidden[uid]) {
+      db.chatHidden[uid] = db.chatHidden[uid].filter(x => x !== fid);
+    }
     persist();
     return msg;
   }
@@ -634,18 +663,60 @@ window.Store = (() => {
     persist();
     return { ok: true };
   }
-  // 未指定分组的好友默认归入「朋友」（第 2 个默认分组）
+  // 默认分组：优先「朋友」，被删/改名后回退到第一个分组
+  function defaultGroupId(list) {
+    const g = list.find(x => x.name === "朋友") || list[0];
+    return g.id;
+  }
+  // 未指定分组的好友默认归入「朋友」
   function groupOf(uid, fid) {
     const list = ensureGroups(uid);
     const map = (db.friendGroup && db.friendGroup[uid]) || {};
     const g = list.find(x => x.id === map[fid]);
-    return g ? g.id : list[1].id;
+    return g ? g.id : defaultGroupId(list);
   }
   function assignGroup(uid, fid, gid) {
     if (!db.friendGroup) db.friendGroup = {};
     if (!db.friendGroup[uid]) db.friendGroup[uid] = {};
     db.friendGroup[uid][fid] = gid;
     persist();
+  }
+  // 删除分组：组内好友自动移动到剩下的第一个分组
+  function delGroup(uid, gid) {
+    const list = ensureGroups(uid);
+    if (list.length <= 1) return { ok: false, msg: "至少保留一个分组" };
+    const idx = list.findIndex(g => g.id === gid);
+    if (idx < 0) return { ok: false, msg: "分组不存在" };
+    const name = list[idx].name;
+    list.splice(idx, 1);
+    const fallback = defaultGroupId(list);
+    const map = (db.friendGroup && db.friendGroup[uid]) || {};
+    let moved = 0;
+    Object.keys(map).forEach(fid => { if (map[fid] === gid) { map[fid] = fallback; moved++; } });
+    persist();
+    return { ok: true, name, moved, to: list.find(g => g.id === fallback).name };
+  }
+
+  /* ---------- 好友备注 ---------- */
+  function remarkOf(uid, fid) {
+    return (db.remark && db.remark[uid] && db.remark[uid][fid]) || "";
+  }
+  function setRemark(uid, fid, name) {
+    name = String(name == null ? "" : name).trim();
+    if (name.length > 12) return { ok: false, msg: "备注名不超过 12 个字" };
+    if (!db.remark) db.remark = {};
+    if (!db.remark[uid]) db.remark[uid] = {};
+    if (name) db.remark[uid][fid] = name;
+    else delete db.remark[uid][fid];
+    persist();
+    return { ok: true, name };
+  }
+  // 列表/聊天中显示的名字：有备注用备注，否则用昵称
+  function displayName(uid, fid) {
+    const r = remarkOf(uid, fid);
+    if (r) return r;
+    const u = getUser(fid);
+    return u ? u.nickname : "好友";
   }
 
   /* ---------- 好友页导航顺序 ---------- */
@@ -736,11 +807,13 @@ window.Store = (() => {
     // 好友
     listFriends, isFriend, pendingRequests, sentRequests, sendRequest, acceptRequest, rejectRequest, deleteFriend,
     // 好友分组
-    getGroups, addGroup, renameGroup, groupOf, assignGroup,
+    getGroups, addGroup, renameGroup, delGroup, groupOf, assignGroup,
+    // 好友备注
+    remarkOf, setRemark, displayName,
     // 好友页导航顺序
     getFriendNav, saveFriendNav,
     // 对话
-    getMessages, getConversations, sendMessage, markRead,
+    getMessages, getConversations, sendMessage, markRead, clearChat, deleteChat,
     // 动态
     listMoments, toggleLike, addComment, repost, addMoment, setMomentPrivacy,
     // 资产
