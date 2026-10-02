@@ -150,7 +150,10 @@ function openEdit(id) {
   s.el.querySelector("[data-close]").onclick = () => s.close();
   s.el.querySelector("[data-cancel]").onclick = () => s.close();
   s.el.querySelector("[data-ok]").onclick = () => {
-    const perms = [...s.el.querySelectorAll("[data-perm]:checked")].map(i => i.dataset.perm);
+    // 弹层只列出「自己拥有的权限」，其余权限保持不变，避免误删
+    const manageKeys = permOptions().map(p => p.key);
+    const kept = (a.perms || []).filter(k => !manageKeys.includes(k));
+    const perms = [...kept, ...[...s.el.querySelectorAll("[data-perm]:checked")].map(i => i.dataset.perm)];
     Store.updateAdmin(id, { perms });
     UI.toast("权限已更新", "success");
     s.close();
