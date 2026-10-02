@@ -16,6 +16,13 @@ window.AdminShell = (() => {
     const admin = Store.currentAdmin();
     if (!admin) { location.replace("index.html"); return null; }
 
+    // 路由守卫：当前页面所需权限若当前管理员没有，退回数据总览（防止直接输入网址越权）
+    const cur = MENUS.find(m => m.key === menu);
+    if (cur && cur.perm && !Store.hasPerm(admin, cur.perm)) {
+      location.replace("dashboard.html?denied=" + encodeURIComponent(cur.perm));
+      return null;
+    }
+
     document.body.classList.add("admin-body");
     const app = document.getElementById("admin-app");
     app.classList.add("admin-layout");
