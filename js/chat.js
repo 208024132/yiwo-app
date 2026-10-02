@@ -7,6 +7,19 @@ const me = Store.currentUser();
 const chatTitle = friend ? (me ? Store.displayName(me.id, fid) : friend.nickname) : "聊天";
 UserShell.boot({ tab: null, title: chatTitle, back: "friends.html", hideTab: true });
 
+// 点击顶栏任意处进入好友资料
+if (friend) {
+  const head = document.querySelector(".app-header .head-title");
+  if (head) {
+    head.innerHTML = `<a class="chat-head-link" href="friend-profile.html?id=${encodeURIComponent(fid)}">
+      ${UI.avatarEl(friend, "sm")}
+      <span class="chat-head-name ellipsis">${UI.esc(chatTitle)}</span>
+      ${UI.icon("chevron-right", 14)}
+    </a>`;
+    head.classList.add("chat-head");
+  }
+}
+
 (() => {
   const u = Store.currentUser();
   if (!u) return;
