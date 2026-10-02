@@ -2,6 +2,14 @@ const S = AdminShell.boot({ menu: "dashboard", title: "数据总览" });
 if (S) (function(){
 Theme.apply(Theme.current());
 
+// 越权访问被拦截后的提示
+const denied = new URLSearchParams(location.search).get("denied");
+if (denied) {
+  const p = Store.PERMS.find(x => x.key === denied);
+  UI.toast("无权限访问：" + (p ? p.name : denied), "error");
+  try { history.replaceState(null, "", "dashboard.html"); } catch (e) {}
+}
+
 const d = Store.dashboard();
 const GENDER_COLORS = { "男": "#3d7fc4", "女": "#f76f8e", "保密": "#8e9eab" };
 
