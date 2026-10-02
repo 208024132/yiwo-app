@@ -83,7 +83,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
         <div class="home-moment">
           <span class="hm-ava">${UI.avatarEl(au, "md")}</span>
           <div class="hm-main">
-            <div class="hm-name ellipsis">${UI.esc(au.nickname)}</div>
+            <div class="hm-name ellipsis">${UI.esc(m.uid ? Store.displayName(u.id, m.uid) : au.nickname)}</div>
             <div class="hm-text clamp-2">${UI.esc(m.text || "转发了动态")}</div>
             <div class="hm-time">${UI.timeAgo(m.t)}</div>
           </div>
