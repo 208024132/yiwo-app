@@ -205,6 +205,9 @@ window.Store = (() => {
     return {
       users, friends, friendReqs, chats, moments, accounts, books, memos, fitness, tasks, admins,
       order: { u10001: ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"] },
+      groups: {},
+      friendGroup: {},
+      friendNav: {},
       settings: {
         appName: "以我",
         homeGreeting: "你好，{nickname} 👋",
@@ -334,6 +337,7 @@ window.Store = (() => {
   }
   function deleteFriend(uid, fid) {
     db.friends = db.friends.filter(f => !((f.a === uid && f.b === fid) || (f.a === fid && f.b === uid)));
+    if (db.friendGroup && db.friendGroup[uid]) delete db.friendGroup[uid][fid];
     persist();
   }
 
@@ -593,6 +597,74 @@ window.Store = (() => {
   function getOrder(uid) { return db.order[uid] || ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"]; }
   function saveOrder(uid, arr) { db.order[uid] = arr; persist(); }
 
+  /* ---------- 好友分组 ---------- */
+  const DEFAULT_GROUPS = ["家人", "朋友", "同事", "同学", "特别关心"];
+  function newGid() { return "g" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36); }
+  function ensureGroups(uid) {
+    if (!db.groups) db.groups = {};
+    let list = db.groups[uid];
+    if (!list || !list.length) {
+      list = DEFAULT_GROUPS.map(name => ({ id: newGid(), name }));
+      db.groups[uid] = list;
+      persist();
+    }
+    return list;
+  }
+  function getGroups(uid) { return ensureGroups(uid).map(g => ({ ...g })); }
+  function addGroup(uid, name) {
+    name = String(name || "").trim();
+    if (!name) return { ok: false, msg: "请输入分组名称" };
+    if (name.length > 8) return { ok: false, msg: "分组名称不超过 8 个字" };
+    const list = ensureGroups(uid);
+    if (list.some(g => g.name === name)) return { ok: false, msg: "该分组已存在" };
+    const g = { id: newGid(), name };
+    list.push(g);
+    persist();
+    return { ok: true, group: { ...g } };
+  }
+  function renameGroup(uid, gid, name) {
+    name = String(name || "").trim();
+    if (!name) return { ok: false, msg: "请输入分组名称" };
+    if (name.length > 8) return { ok: false, msg: "分组名称不超过 8 个字" };
+    const list = ensureGroups(uid);
+    if (list.some(g => g.name === name && g.id !== gid)) return { ok: false, msg: "该分组已存在" };
+    const g = list.find(x => x.id === gid);
+    if (!g) return { ok: false, msg: "分组不存在" };
+    g.name = name;
+    persist();
+    return { ok: true };
+  }
+  // 未指定分组的好友默认归入「朋友」（第 2 个默认分组）
+  function groupOf(uid, fid) {
+    const list = ensureGroups(uid);
+    const map = (db.friendGroup && db.friendGroup[uid]) || {};
+    const g = list.find(x => x.id === map[fid]);
+    return g ? g.id : list[1].id;
+  }
+  function assignGroup(uid, fid, gid) {
+    if (!db.friendGroup) db.friendGroup = {};
+    if (!db.friendGroup[uid]) db.friendGroup[uid] = {};
+    db.friendGroup[uid][fid] = gid;
+    persist();
+  }
+
+  /* ---------- 好友页导航顺序 ---------- */
+  const FRIEND_NAV = ["contacts", "messages", "moments"];
+  function getFriendNav(uid) {
+    if (!db.friendNav) db.friendNav = {};
+    const arr = db.friendNav[uid];
+    if (!arr || arr.length !== FRIEND_NAV.length || FRIEND_NAV.some(k => !arr.includes(k))) return [...FRIEND_NAV];
+    return [...arr];
+  }
+  function saveFriendNav(uid, arr) {
+    if (!db.friendNav) db.friendNav = {};
+    const next = [];
+    (Array.isArray(arr) ? arr : []).forEach(k => { if (FRIEND_NAV.includes(k) && !next.includes(k)) next.push(k); });
+    FRIEND_NAV.forEach(k => { if (!next.includes(k)) next.push(k); });   // 补齐缺失项，保持用户顺序
+    db.friendNav[uid] = next;
+    persist();
+  }
+
   /* ---------- 管理员 ---------- */
   function loginAdmin(account, password) {
     const a = db.admins.find(x => x.account === String(account).trim());
@@ -663,6 +735,10 @@ window.Store = (() => {
     currentUser, currentAdmin, login, register, logout, updateProfile, getUser, listUsers, filterUsers,
     // 好友
     listFriends, isFriend, pendingRequests, sentRequests, sendRequest, acceptRequest, rejectRequest, deleteFriend,
+    // 好友分组
+    getGroups, addGroup, renameGroup, groupOf, assignGroup,
+    // 好友页导航顺序
+    getFriendNav, saveFriendNav,
     // 对话
     getMessages, getConversations, sendMessage, markRead,
     // 动态
