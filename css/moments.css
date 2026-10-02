@@ -33,6 +33,7 @@
 .m-action.on { color: var(--primary); }
 .m-action.on svg { fill: currentColor; }
 .m-repost-count { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); font-size: var(--fs-xs); }
+.m-likers { margin-top: 8px; line-height: 1.5; }
 
 /* 谁可以看 sheet */
 .priv-list { display: flex; flex-direction: column; }
