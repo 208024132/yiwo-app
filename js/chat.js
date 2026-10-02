@@ -2,7 +2,10 @@
 
 const fid = new URLSearchParams(location.search).get("id");
 const friend = Store.getUser(fid);
-UserShell.boot({ tab: null, title: friend ? friend.nickname : "聊天", back: "friends.html", hideTab: true });
+const me = Store.currentUser();
+// 标题优先显示备注名
+const chatTitle = friend ? (me ? Store.displayName(me.id, fid) : friend.nickname) : "聊天";
+UserShell.boot({ tab: null, title: chatTitle, back: "friends.html", hideTab: true });
 
 (() => {
   const u = Store.currentUser();
