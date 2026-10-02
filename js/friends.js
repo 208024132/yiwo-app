@@ -13,7 +13,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
   let kw = "";       // 联系人搜索
   let mkw = "";      // 消息搜索
   let reqOpen = false;
-  const collapsed = {};   // 分组折叠状态
+  const expanded = {};    // 分组展开状态（默认全部折叠）
 
   const pendingCount = () => Store.pendingRequests(u.id).length;
 
@@ -27,14 +27,14 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
     if (m.text) text = UI.esc(m.text);
     else if (m.type === "repost" && m.orig) {
       const ou = Store.getUser(m.orig.uid);
-      text = `<span class="m-repost">转发了 ${UI.esc(ou ? ou.nickname : "好友")} 的动态</span>`;
+      text = `<span class="m-repost">转发了 ${UI.esc(ou ? nameOf(ou.id) : "好友")} 的动态</span>`;
     } else text = UI.esc("分享了动态");
     return `
       <article class="card moment-card fade-in" data-mid="${m.id}">
         <div class="m-head">
           <span class="m-ava">${UI.avatarEl(au, "md")}</span>
           <div class="m-main">
-            <div class="m-name ellipsis">${UI.esc(au.nickname)}</div>
+            <div class="m-name ellipsis">${UI.esc(m.uid ? nameOf(m.uid) : au.nickname)}</div>
             <div class="m-time">${UI.timeAgo(m.t)}</div>
           </div>
         </div>
@@ -45,6 +45,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
           <button class="m-act" data-act="comment"><span class="m-act-ico">${UI.icon("comment", 18)}</span>${(m.comments || []).length}</button>
           <button class="m-act" data-act="share"><span class="m-act-ico">${UI.icon("share", 18)}</span>${m.reposts || 0}</button>
         </div>
+        ${(m.likes || []).length ? `<div class="m-likers txt-xs txt-3">❤️ ${m.likes.map(x => UI.esc(nameOf(x))).join("、")}</div>` : ""}
       </article>`;
   }
 
@@ -61,7 +62,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
       return `<div class="cmt-item">
         <span class="cmt-ava">${UI.avatarEl(cu, "sm")}</span>
         <div class="cmt-main">
-          <div class="cmt-name ellipsis">${UI.esc(cu.nickname)}</div>
+          <div class="cmt-name ellipsis">${UI.esc(cu ? nameOf(c.uid) : "用户")}</div>
           <div class="cmt-text">${UI.esc(c.text)}</div>
           <div class="cmt-time">${UI.timeAgo(c.t)}</div>
         </div>
@@ -184,7 +185,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
 
     box.innerHTML = Store.getGroups(u.id).map(g => {
       const members = cons.filter(c => Store.groupOf(u.id, c.user.id) === g.id);
-      const open = !collapsed[g.id];
+      const open = !!expanded[g.id];
       return `<section class="grp${open ? " open" : ""}">
         <div class="grp-head" data-ghead="${g.id}">
           <span class="grp-arrow ${open ? "on" : ""}">${UI.icon("chevron-right", 16)}</span>
@@ -370,6 +371,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
       if (name == null) return;
       const r = Store.addGroup(u.id, name);
       if (!r.ok) { UI.toast(r.msg, "warn"); return; }
+      expanded[r.group.id] = true;
       UI.toast("已创建分组「" + r.group.name + "」", "success");
       if (document.getElementById("groups-box")) updateContacts();
     });
@@ -438,6 +440,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
     s.el.querySelector("[data-close]").onclick = s.close;
     s.el.querySelectorAll("[data-pick]").forEach(el => el.onclick = () => {
       Store.assignGroup(u.id, fid, el.dataset.pick);
+      expanded[el.dataset.pick] = true;   // 移动后展开目标分组，便于确认
       s.close();
       UI.toast("已移动分组", "success");
       updateContacts();
@@ -449,6 +452,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
         const r = Store.addGroup(u.id, name);
         if (!r.ok) { UI.toast(r.msg, "warn"); return; }
         Store.assignGroup(u.id, fid, r.group.id);
+        expanded[r.group.id] = true;
         UI.toast("已创建并移动", "success");
         updateContacts();
       });
@@ -573,7 +577,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
     if (delr) { deleteRec(delr.dataset.delrec); return; }
 
     const ghead = e.target.closest("[data-ghead]");
-    if (ghead) { const id = ghead.dataset.ghead; collapsed[id] = !collapsed[id]; updateContacts(); return; }
+    if (ghead) { const id = ghead.dataset.ghead; expanded[id] = !expanded[id]; updateContacts(); return; }
 
     const tabBtn = e.target.closest("[data-tab]");
     if (tabBtn) { tab = tabBtn.dataset.tab; render(); return; }
