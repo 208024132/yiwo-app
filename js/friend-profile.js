@@ -2,7 +2,9 @@
 
 const fid = new URLSearchParams(location.search).get("id");
 const target = Store.getUser(fid);
-UserShell.boot({ tab: null, title: target ? target.nickname : "好友资料", back: "friends.html", hideTab: true });
+const meTop = Store.currentUser();
+const dispName = target ? (meTop ? Store.displayName(meTop.id, fid) : target.nickname) : "好友资料";
+UserShell.boot({ tab: null, title: dispName, back: "friends.html", hideTab: true });
 
 (() => {
   const u = Store.currentUser();
@@ -10,6 +12,7 @@ UserShell.boot({ tab: null, title: target ? target.nickname : "好友资料", ba
   if (!target) { location.replace("friends.html"); return; }
 
   const body = document.getElementById("profile-body");
+  const nameOf = id => Store.displayName(u.id, id);   // 优先备注名
 
   /* ---------- 动态卡片 ---------- */
   function momentCard(m) {
@@ -20,14 +23,14 @@ UserShell.boot({ tab: null, title: target ? target.nickname : "好友资料", ba
     if (m.text) text = UI.esc(m.text);
     else if (m.type === "repost" && m.orig) {
       const ou = Store.getUser(m.orig.uid);
-      text = `<span class="m-repost">转发了 ${UI.esc(ou ? ou.nickname : "好友")} 的动态</span>`;
+      text = `<span class="m-repost">转发了 ${UI.esc(ou ? nameOf(ou.id) : "好友")} 的动态</span>`;
     } else text = UI.esc("分享了动态");
     return `
       <article class="card moment-card fade-in" data-mid="${m.id}">
         <div class="m-head">
           <span class="m-ava">${UI.avatarEl(target, "md")}</span>
           <div class="m-main">
-            <div class="m-name ellipsis">${UI.esc(target.nickname)}</div>
+            <div class="m-name ellipsis">${UI.esc(nameOf(fid))}</div>
             <div class="m-time">${UI.timeAgo(m.t)}</div>
           </div>
         </div>
@@ -38,6 +41,7 @@ UserShell.boot({ tab: null, title: target ? target.nickname : "好友资料", ba
           <button class="m-act" data-act="comment"><span class="m-act-ico">${UI.icon("comment", 18)}</span>${(m.comments || []).length}</button>
           <button class="m-act" data-act="share"><span class="m-act-ico">${UI.icon("share", 18)}</span>${m.reposts || 0}</button>
         </div>
+        ${(m.likes || []).length ? `<div class="m-likers txt-xs txt-3">❤️ ${m.likes.map(x => UI.esc(nameOf(x))).join("、")}</div>` : ""}
       </article>`;
   }
 
@@ -53,7 +57,7 @@ UserShell.boot({ tab: null, title: target ? target.nickname : "好友资料", ba
       return `<div class="cmt-item">
         <span class="cmt-ava">${UI.avatarEl(cu, "sm")}</span>
         <div class="cmt-main">
-          <div class="cmt-name ellipsis">${UI.esc(cu.nickname)}</div>
+          <div class="cmt-name ellipsis">${UI.esc(cu ? nameOf(c.uid) : "用户")}</div>
           <div class="cmt-text">${UI.esc(c.text)}</div>
           <div class="cmt-time">${UI.timeAgo(c.t)}</div>
         </div>
@@ -100,22 +104,32 @@ UserShell.boot({ tab: null, title: target ? target.nickname : "好友资料", ba
         actions = `<div class="profile-actions">
           <a class="btn primary" href="chat.html?id=${fid}">${UI.icon("comment", 16)} 发消息</a>
           <button class="btn ghost" data-del>删除好友</button>
+        </div>
+        <div class="profile-actions">
+          <button class="btn ghost" data-remark>${UI.icon("edit", 16)} 备注</button>
+          <button class="btn ghost" data-movegroup>${UI.icon("users", 16)} 移动分组</button>
         </div>`;
       } else {
         actions = `<div class="profile-actions"><button class="btn primary block" data-add>加为好友</button></div>`;
       }
     }
 
+    const remk = isF ? Store.remarkOf(u.id, fid) : "";
+    const grpName = isF ? ((Store.getGroups(u.id).find(g => g.id === Store.groupOf(u.id, fid)) || {}).name || "") : "";
+
     const moments = Store.listMoments({ uid: fid, scope: "user" });
     body.innerHTML = `
       <section class="profile-hero fade-in">
         <div class="profile-ava">${UI.avatarEl(target, "xl")}</div>
-        <div class="profile-name">${UI.esc(target.nickname)}</div>
+        <div class="profile-name">${UI.esc(nameOf(fid))}</div>
+        ${isF && remk ? `<div class="profile-nick">昵称：${UI.esc(target.nickname)}</div>` : ""}
         <div class="profile-sig">${UI.esc(target.signature || "这个人很懒，什么都没写")}</div>
         ${target.region ? `<div class="profile-region">📍 ${UI.esc(target.region)}</div>` : ""}
       </section>
       ${actions}
       <section class="list profile-info">
+        ${isF ? `<div class="list-item"><span class="info-label">备注</span><span class="info-val">${UI.esc(remk || "未设置")}</span></div>
+        <div class="list-item"><span class="info-label">好友分组</span><span class="info-val">${UI.esc(grpName || "—")}</span></div>` : ""}
         <div class="list-item"><span class="info-label">性别</span><span class="info-val">${UI.esc(target.gender || "保密")}</span></div>
         <div class="list-item"><span class="info-label">年龄</span><span class="info-val">${target.age ? target.age + " 岁" : "未填写"}</span></div>
         <div class="list-item"><span class="info-label">地区</span><span class="info-val">${UI.esc(target.region || "未填写")}</span></div>
@@ -127,7 +141,56 @@ UserShell.boot({ tab: null, title: target ? target.nickname : "好友资料", ba
     bind();
   }
 
+  // 同步顶栏标题（备注变化后）
+  function syncHead() {
+    const head = document.querySelector(".app-header .head-title");
+    if (head) head.textContent = nameOf(fid);
+  }
+
+  // 备注名字（留空恢复昵称）
+  function editRemark() {
+    const nick = target.nickname || "好友";
+    UI.promptInput({
+      title: "设置备注",
+      placeholder: "备注名（最多 12 个字），留空恢复昵称",
+      value: Store.remarkOf(u.id, fid), max: 12,
+    }).then(name => {
+      if (name == null) return;
+      const r = Store.setRemark(u.id, fid, name);
+      if (!r.ok) { UI.toast(r.msg, "warn"); return; }
+      UI.toast(r.name ? "备注已保存" : "已恢复昵称「" + nick + "」", "success");
+      syncHead();
+      render();
+    });
+  }
+
+  // 移动分组
+  function moveGroup() {
+    const cur = Store.groupOf(u.id, fid);
+    const s = UI.sheet(`
+      <div class="sheet-head"><h3>移动分组</h3><button class="icon-btn" data-close>${UI.icon("close", 18)}</button></div>
+      <div class="txt-sm txt-2 grp-tip">将「${UI.esc(nameOf(fid))}」移动到：</div>
+      <div class="list">
+        ${Store.getGroups(u.id).map(g => `<div class="list-item tap" data-pick="${g.id}">
+          <span class="li-main"><span class="li-title">${UI.esc(g.name)}</span></span>
+          ${g.id === cur ? `<span class="grp-check">✓</span>` : ""}
+        </div>`).join("")}
+      </div>`);
+    s.el.querySelector("[data-close]").onclick = s.close;
+    s.el.querySelectorAll("[data-pick]").forEach(el => el.onclick = () => {
+      Store.assignGroup(u.id, fid, el.dataset.pick);
+      s.close();
+      UI.toast("已移动到「" + (Store.getGroups(u.id).find(g => g.id === el.dataset.pick) || {}).name + "」", "success");
+      render();
+    });
+  }
+
   function bind() {
+    const remk = body.querySelector("[data-remark]");
+    if (remk) remk.onclick = editRemark;
+    const mv = body.querySelector("[data-movegroup]");
+    if (mv) mv.onclick = moveGroup;
+
     const del = body.querySelector("[data-del]");
     if (del) del.onclick = async () => {
       const ok = await UI.confirm("删除好友", "删除后将解除好友关系，且无法查看对方的朋友圈动态。");
