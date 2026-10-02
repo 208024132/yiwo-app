@@ -17,6 +17,7 @@
 .profile-ava { display: flex; justify-content: center; margin-bottom: 12px; position: relative; }
 .profile-ava .avatar { border: 3px solid rgba(255, 255, 255, 0.55); }
 .profile-name { font-size: 20px; font-weight: 800; position: relative; }
+.profile-nick { font-size: var(--fs-xs); opacity: 0.82; margin-top: 4px; position: relative; }
 .profile-sig { font-size: var(--fs-sm); opacity: 0.9; margin-top: 6px; position: relative; }
 .profile-region { font-size: var(--fs-xs); opacity: 0.8; margin-top: 8px; position: relative; }
 
@@ -55,6 +56,11 @@
 .m-act .m-act-ico { display: flex; }
 .m-act.on { color: #e74c5e; }
 .m-act.on .m-act-ico { color: #e74c5e; }
+.m-likers { margin-top: 6px; }
+
+/* 移动分组弹层 */
+.grp-tip { margin: 4px 0 12px; }
+.grp-check { color: var(--primary); font-weight: 800; }
 
 /* 评论弹层 */
 .cmt-list {
