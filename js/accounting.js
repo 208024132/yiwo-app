@@ -59,11 +59,15 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
 
     body.querySelectorAll(".rec-del").forEach(btn => {
       btn.onclick = async () => {
-        const ok = await UI.confirm("删除这条记录?", "删除后无法恢复");
+        const ok = await UI.confirm("删除这条记录？", "删除后短时间内可以点「撤销」找回。", { okText: "删除", danger: true });
         if (!ok) return;
-        Store.delRecord(u.id, btn.dataset.id);
-        UI.toast("已删除");
+        const removed = Store.delRecord(u.id, btn.dataset.id);
         render();
+        if (!removed) { UI.toast("删除失败", "error"); return; }
+        UI.toastAction("记录已删除", {
+          label: "撤销",
+          onAct: () => { Store.restoreRecord(u.id, removed); render(); UI.toast("已恢复", "success"); },
+        });
       };
     });
   }
