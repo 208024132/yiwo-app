@@ -210,10 +210,80 @@ window.UI = (() => {
     "linear-gradient(135deg,#8e9eab,#5c6b7a)",
   ];
   function avatarEl(user, size = "md") {
+    const s = size || "md";
+    const img = user && user.avatarImg;
+    if (img) return `<span class="avatar ${s} has-img"><img class="avatar-img" src="${esc(img)}" alt=""></span>`;
     const a = user && user.avatarEmoji;
     const c = (user && user.avatarColor) || 0;
-    const s = size || "md";
     return `<span class="avatar ${s}" style="background:${AVATAR_GRADS[c % AVATAR_GRADS.length]}">${a || esc((user && user.nickname || "?").slice(0, 1))}</span>`;
+  }
+
+  /* ---------- 动态图片：兼容本地图片(src) 与 预设渐变(e/g) ---------- */
+  function photoBox(p, cls = "m-photo") {
+    if (p && p.src) return `<span class="${cls} has-img"><img src="${esc(p.src)}" alt=""></span>`;
+    return `<span class="${cls}" style="background:${(p && p.g) || "var(--card-2)"}">${(p && p.e) || ""}</span>`;
+  }
+
+  /* ---------- 本地图片读取 + 压缩（避免 localStorage 超限） ---------- */
+  function readImage(file, { max = 1024, quality = 0.7, square = false } = {}) {
+    return new Promise((resolve, reject) => {
+      if (!file || !/^image\//.test(file.type || "")) { reject(new Error("请选择图片文件")); return; }
+      const fr = new FileReader();
+      fr.onerror = () => reject(new Error("图片读取失败"));
+      fr.onload = () => {
+        const img = new Image();
+        img.onerror = () => reject(new Error("图片解析失败"));
+        img.onload = () => {
+          const cv = document.createElement("canvas");
+          const ctx = cv.getContext("2d");
+          let sx = 0, sy = 0, sw = img.width, sh = img.height, outW, outH;
+          if (square) {
+            const side = Math.min(img.width, img.height);
+            sx = (img.width - side) / 2; sy = (img.height - side) / 2; sw = sh = side;
+            outW = outH = Math.min(max, Math.round(side));
+          } else {
+            const scale = Math.min(1, max / Math.max(img.width, img.height));
+            outW = Math.max(1, Math.round(img.width * scale));
+            outH = Math.max(1, Math.round(img.height * scale));
+          }
+          cv.width = outW; cv.height = outH;
+          ctx.drawImage(img, sx, sy, sw, sh, 0, 0, outW, outH);
+          try { resolve(cv.toDataURL("image/jpeg", quality)); }
+          catch (e) { resolve(fr.result); }
+        };
+        img.src = fr.result;
+      };
+      fr.readAsDataURL(file);
+    });
+  }
+
+  /* ---------- QQ空间式互动区（点赞名单 + 评论列表） ---------- */
+  function qzInter({ likes = [], comments = [], nameOf = x => x } = {}) {
+    if (!likes.length && !comments.length) return "";
+    const likers = likes.length
+      ? `<div class="qz-likers"><span class="qz-heart">❤</span>${likes
+          .map(x => `<span class="qz-lk">${esc(nameOf(x))}</span>`).join("，")}</div>`
+      : "";
+    const cmts = comments.length
+      ? `<div class="qz-cmts">${comments.map(c =>
+          `<div class="qz-cmt"><span class="qz-cn">${esc(nameOf(c.uid))}：</span>${esc(c.text)}</div>`).join("")}</div>`
+      : "";
+    return `<div class="qz-inter">${likers}${likers && cmts ? `<div class="qz-line"></div>` : ""}${cmts}</div>`;
+  }
+
+  /* ---------- QQ空间式操作条 ---------- */
+  function qzActs({ liked = false, likes = 0, comments = 0, reposts = 0 } = {}) {
+    return `<div class="m-actions">
+      <button class="m-act ${liked ? "on" : ""}" data-act="like">
+        <span class="m-act-ico">${icon("like", 17)}</span><span>赞</span>${likes ? `<em class="m-act-num">${likes}</em>` : ""}
+      </button>
+      <button class="m-act" data-act="comment">
+        <span class="m-act-ico">${icon("comment", 17)}</span><span>评论</span>${comments ? `<em class="m-act-num">${comments}</em>` : ""}
+      </button>
+      <button class="m-act" data-act="share">
+        <span class="m-act-ico">${icon("share", 17)}</span><span>转发</span>${reposts ? `<em class="m-act-num">${reposts}</em>` : ""}
+      </button>
+    </div>`;
   }
 
   /* ---------- 杂项 ---------- */
@@ -249,6 +319,6 @@ window.UI = (() => {
   return {
     icon, toast, sheet, dialog, confirm, promptInput,
     fmtMoney, fmtWan, dayStr, fmtDate, fmtDateTime, fmtTime, timeAgo,
-    avatarEl, esc, uid, emptyBox, debounce, countUp,
+    avatarEl, photoBox, readImage, qzInter, qzActs, esc, uid, emptyBox, debounce, countUp,
   };
 })();
