@@ -46,17 +46,8 @@
   aspect-ratio: 16 / 10; border-radius: 14px; display: flex; align-items: center;
   justify-content: center; font-size: 34px; min-height: 110px; width: 100%;
 }
-.m-actions { display: flex; gap: 4px; margin-top: 12px; border-top: 1px solid var(--line-soft); padding-top: 8px; }
-.m-act {
-  flex: 1; display: flex; align-items: center; justify-content: center; gap: 6px;
-  color: var(--text-3); font-size: var(--fs-sm); font-weight: 600; padding: 7px 0;
-  border-radius: 10px; transition: background 0.15s ease, color 0.15s ease;
-}
-.m-act:active { background: var(--card-2); }
-.m-act .m-act-ico { display: flex; }
-.m-act.on { color: #e74c5e; }
-.m-act.on .m-act-ico { color: #e74c5e; }
-.m-likers { margin-top: 6px; }
+
+/* QQ空间式互动区样式见 components.css（.qz-* / .m-acts） */
 
 /* 移动分组弹层 */
 .grp-tip { margin: 4px 0 12px; }
