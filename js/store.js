@@ -68,6 +68,15 @@ window.Store = (() => {
       ],
     };
   }
+  function seedDebts() {
+    return {
+      u10001: [
+        { id: "d1", name: "招商信用卡", amount: 3250.5, t: ts(-40, "10:10") },
+        { id: "d2", name: "花呗", amount: 860, t: ts(-40, "10:11") },
+        { id: "d3", name: "京东白条", amount: 1280, t: ts(-40, "10:12") },
+      ],
+    };
+  }
 
   /* ---------- 种子数据 ---------- */
   function seed() {
@@ -229,6 +238,7 @@ window.Store = (() => {
     return {
       users, friends, friendReqs, chats, moments, accounts, books, memos, fitness, tasks, admins,
       wallets: seedWallets(),
+      debts: seedDebts(),
       order: { u10001: ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"] },
       groups: {},
       friendGroup: {},
@@ -263,6 +273,7 @@ window.Store = (() => {
     if (!db[k]) { db[k] = {}; dirty = true; }
   });
   if (!db.wallets) { db.wallets = seedWallets(); dirty = true; }
+  if (!db.debts) { db.debts = seedDebts(); dirty = true; }
   if (dirty) persist();
 
   function persist() {
@@ -525,7 +536,45 @@ window.Store = (() => {
       key: g.key, name: g.name,
       items: list.filter(a => g.types.indexOf(a.type) >= 0),
     })).filter(g => g.items.length);
-    return { total, liquid, frozen: total - liquid, count: list.length, groups, list };
+    const debts = listDebts(uid);
+    const debt = debts.reduce((s, d) => s + d.amount, 0);
+    return { total, liquid, frozen: total - liquid, count: list.length, groups, list, debts, debt, net: total - debt };
+  }
+  /* ---------- 负债 ---------- */
+  function listDebts(uid) {
+    return (db.debts[uid] || []).slice().sort((a, b) => a.t - b.t);
+  }
+  function addDebt(uid, { name, amount = 0 }) {
+    const d = {
+      id: "d" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
+      name: String(name || "").trim() || "新负债",
+      amount: Number(amount) || 0, t: Date.now(),
+    };
+    if (!db.debts[uid]) db.debts[uid] = [];
+    db.debts[uid].push(d);
+    persist();
+    return d;
+  }
+  function updateDebt(uid, id, patch) {
+    const d = (db.debts[uid] || []).find(x => x.id === id);
+    if (!d) return null;
+    Object.assign(d, patch);
+    persist();
+    return d;
+  }
+  function delDebt(uid, id) {
+    const list = db.debts[uid] || [];
+    const i = list.findIndex(x => x.id === id);
+    if (i < 0) return null;
+    const removed = list.splice(i, 1)[0];
+    persist();
+    return removed;
+  }
+  function restoreDebt(uid, d) {
+    if (!d) return;
+    if (!db.debts[uid]) db.debts[uid] = [];
+    db.debts[uid].push(d);
+    persist();
   }
   function addWallet(uid, { name, type = "bank", liquid = true, balance = 0 }) {
     const acc = {
@@ -751,7 +800,7 @@ window.Store = (() => {
     try { obj = JSON.parse(text); } catch (e) { return { ok: false, msg: "文件内容不是有效的 JSON" }; }
     const next = obj && obj.__yiwo ? obj.data : obj;
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
-    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets"].forEach(k => { if (!next[k]) next[k] = {}; });
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts"].forEach(k => { if (!next[k]) next[k] = {}; });
     db = next;
     persist();
     return { ok: true };
@@ -951,8 +1000,9 @@ window.Store = (() => {
     getMessages, getConversations, sendMessage, markRead, clearChat, deleteChat,
     // 动态
     listMoments, toggleLike, addComment, repost, addMoment, setMomentPrivacy, delMoment, restoreMoment,
-    // 资产账户 / 记账
+    // 资产账户 / 负债 / 记账
     listWallets, walletSummary, addWallet, updateWallet, delWallet, restoreWallet,
+    listDebts, addDebt, updateDebt, delDebt, restoreDebt,
     listRecords, addRecord, delRecord, restoreRecord, getSummary,
     // 书架
     recommendBooks, myBooks, addToShelf, removeFromShelf, setProgress,
