@@ -24,12 +24,20 @@
 .ac-fold:active { background: color-mix(in srgb, var(--on-primary) 28%, transparent); }
 .asset-card.folded .ac-fold { transform: rotate(180deg); }
 .asset-card.folded .ac-total { margin-bottom: 0; }
+.asset-card.folded .ac-net { margin-bottom: 0; }
 .asset-card.folded .ac-split,
 .asset-card.folded .ac-hint,
 .asset-card.folded .ac-group,
 .asset-card.folded .ac-add,
 .asset-card.folded .ac-debt { display: none; }
-.ac-total { font-size: 34px; font-weight: 800; margin: 6px 0 14px; letter-spacing: 0.01em; }
+.ac-total { font-size: 34px; font-weight: 800; margin: 6px 0 6px; letter-spacing: 0.01em; }
+.ac-net {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 8px;
+  margin: 0 0 14px; padding: 0 2px;
+}
+.ac-net-l { font-size: var(--fs-xs); opacity: 0.86; }
+.ac-net-v { font-size: var(--fs-base); font-weight: 800; }
+.ac-net-v.neg { color: #ffd0c8; }
 .ac-split { display: flex; gap: 10px; }
 .ac-box {
   flex: 1; min-width: 0; padding: 10px 12px; border-radius: 14px;
@@ -112,6 +120,8 @@
 .qe-input::placeholder { font-weight: 600; color: var(--text-3); }
 .qe-save { flex-shrink: 0; padding-left: 22px; padding-right: 22px; }
 .qe-acc { margin-top: 10px; padding: 9px 12px; font-size: var(--fs-sm); color: var(--text-2); }
+.qe-debt { margin-top: 10px; }
+.qe-debt .qe-acc { margin-top: 0; }
 
 /* 图表容器 */
 .chart-box { width: 100%; }
