@@ -123,6 +123,29 @@
 .qe-debt { margin-top: 10px; }
 .qe-debt .qe-acc { margin-top: 0; }
 
+/* 自定义分类入口 + 管理弹层 */
+.qe-cat-add { border-style: dashed; border-color: var(--line); color: var(--text-3); }
+.qe-cat-add:hover { color: var(--primary-strong); border-color: var(--primary); }
+.cat-emoji { display: flex; flex-wrap: wrap; gap: 8px; }
+.cat-emoji-b {
+  width: 40px; height: 40px; border-radius: 12px; background: var(--card-2);
+  border: 1.5px solid transparent; font-size: 19px; line-height: 1;
+  display: inline-flex; align-items: center; justify-content: center;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.cat-emoji-b.on { background: var(--primary-soft); border-color: var(--primary); }
+.cat-manage-t { font-size: var(--fs-sm); font-weight: 700; color: var(--text-2); margin: 18px 0 8px; }
+.cat-manage { display: flex; flex-direction: column; gap: 6px; }
+.cat-manage-row {
+  display: flex; align-items: center; gap: 10px; padding: 8px 10px;
+  background: var(--card-2); border-radius: var(--radius);
+}
+.cat-manage-e { font-size: 18px; line-height: 1; }
+.cat-manage-n { flex: 1; min-width: 0; font-size: var(--fs-sm); color: var(--text); }
+.cat-manage-empty { font-size: var(--fs-sm); color: var(--text-3); padding: 10px 0; }
+.cat-manage .icon-btn { color: var(--text-3); }
+.cat-manage .icon-btn:hover { color: var(--primary-strong); }
+
 /* 图表容器 */
 .chart-box { width: 100%; }
 
