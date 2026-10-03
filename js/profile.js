@@ -17,12 +17,20 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "个人信息" });
       </div>`;
   }
 
+  function heroStyle() {
+    const bg = u.profileBg;
+    if (bg && bg.type === "image" && bg.src) return `background-image:url('${bg.src}');background-size:cover;background-position:center;`;
+    if (bg && bg.type === "color" && bg.value) return `background:${bg.value};`;
+    return "";
+  }
+
   function render() {
     const hero = `
-      <div class="profile-hero">
-        <div class="profile-ava-wrap">
+      <div class="profile-hero ${u.profileBg ? "has-bg" : ""} ${u.profileBg && u.profileBg.type === "image" ? "has-img-bg" : ""}" style="${heroStyle()}">
+        <button class="profile-bg-btn" data-bg aria-label="更换背景">${UI.icon("palette", 16)}</button>
+        <div class="profile-ava-wrap" data-avatar>
           ${UI.avatarEl(u, "xl")}
-          <button class="icon-btn profile-ava-edit" data-avatar aria-label="更换头像">${UI.icon("edit", 15)}</button>
+          <span class="icon-btn profile-ava-edit">${UI.icon("edit", 15)}</span>
         </div>
         <div class="profile-name">${UI.esc(u.nickname)}</div>
         <div class="profile-sig">${UI.esc(u.signature || "这个人很懒，什么都没写")}</div>
@@ -52,18 +60,122 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "个人信息" });
     body.innerHTML = hero + list + note;
   }
 
+  // 全屏查看原图
+  function openViewer(src) {
+    const el = document.createElement("div");
+    el.className = "img-viewer";
+    el.innerHTML = `<img src="${src}" alt=""><button class="img-viewer-x" aria-label="关闭">${UI.icon("close", 22)}</button>`;
+    document.body.appendChild(el);
+    const close = () => el.remove();
+    el.onclick = e => { if (e.target === el || e.target.closest(".img-viewer-x")) close(); };
+  }
+
   function openAvatar() {
+    const hasImg = !!u.avatarImg;
     const s = UI.sheet(`
-      <div class="sheet-head"><h3>选择头像</h3>
+      <div class="sheet-head"><h3>头像设置</h3>
         <button class="icon-btn" data-x>${UI.icon("close", 18)}</button></div>
+      <div class="ava-preview">${UI.avatarEl(u, "xl")}</div>
+      <div class="ava-btns">
+        ${hasImg ? `<button class="btn ghost sm" data-view>${UI.icon("search", 15)} 查看原图</button>` : ""}
+        <button class="btn ghost sm" data-upload>${UI.icon("image", 15)} 自定义头像</button>
+        ${hasImg ? `<button class="btn ghost sm" data-reset>${UI.icon("refresh", 15)} 恢复默认</button>` : ""}
+      </div>
+      <input type="file" accept="image/*" hidden data-file>
+      <div class="ava-tip txt-xs txt-3">或选择一个默认头像</div>
       <div class="avatar-grid">
-        ${EMOJIS.map(e => `<div class="avatar-opt ${u.avatarEmoji === e ? "on" : ""}" data-e="${e}">${e}</div>`).join("")}
+        ${EMOJIS.map(e => `<div class="avatar-opt ${!hasImg && u.avatarEmoji === e ? "on" : ""}" data-e="${e}">${e}</div>`).join("")}
       </div>`);
     s.el.querySelector("[data-x]").onclick = () => s.close();
+
+    const view = s.el.querySelector("[data-view]");
+    if (view) view.onclick = () => { if (u.avatarImg) openViewer(u.avatarImg); };
+
+    const reset = s.el.querySelector("[data-reset]");
+    if (reset) reset.onclick = () => {
+      Store.updateProfile(u.id, { avatarImg: "", avatarEmoji: "" });
+      s.close();
+      UI.toast("已恢复默认头像", "success");
+      render();
+    };
+
+    const file = s.el.querySelector("[data-file]");
+    s.el.querySelector("[data-upload]").onclick = () => file.click();
+    file.onchange = async () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      try {
+        const src = await UI.readImage(f, { max: 480, quality: 0.8, square: true });
+        Store.updateProfile(u.id, { avatarImg: src, avatarEmoji: "" });
+        s.close();
+        UI.toast("头像已更新", "success");
+        render();
+      } catch (err) { UI.toast(err.message || "图片处理失败", "error"); }
+    };
+
     s.el.querySelectorAll("[data-e]").forEach(el => el.onclick = () => {
-      Store.updateProfile(u.id, { avatarEmoji: el.dataset.e });
+      Store.updateProfile(u.id, { avatarEmoji: el.dataset.e, avatarImg: "" });
       s.close();
       UI.toast("头像已更新", "success");
+      render();
+    });
+  }
+
+  // 头像区背景：纯色 / 自定义图片
+  const BG_PRESETS = [
+    "var(--grad)",
+    "linear-gradient(135deg,#f2994a,#ef5e47)",
+    "linear-gradient(135deg,#56ccf2,#2f80ed)",
+    "linear-gradient(135deg,#a1e657,#43a047)",
+    "linear-gradient(135deg,#f76f8e,#b23a6e)",
+    "linear-gradient(135deg,#9b6cf7,#5f3dcf)",
+    "linear-gradient(135deg,#f2c94c,#f2994a)",
+    "linear-gradient(135deg,#48c6c0,#1f8a8a)",
+    "linear-gradient(135deg,#8e9eab,#5c6b7a)",
+  ];
+
+  function openBg() {
+    const cur = u.profileBg;
+    const curVal = cur && cur.type === "color" ? cur.value : "";
+    const s = UI.sheet(`
+      <div class="sheet-head"><h3>头像背景</h3>
+        <button class="icon-btn" data-x>${UI.icon("close", 18)}</button></div>
+      <div class="bg-swatches">
+        ${BG_PRESETS.map(v => `<div class="bg-swatch ${curVal === v ? "on" : ""}" style="background:${v}" data-v="${v}"></div>`).join("")}
+      </div>
+      <div class="ava-btns">
+        <button class="btn ghost sm" data-upload>${UI.icon("image", 15)} 自定义背景图</button>
+        ${cur ? `<button class="btn ghost sm" data-reset>${UI.icon("refresh", 15)} 恢复默认</button>` : ""}
+      </div>
+      <input type="file" accept="image/*" hidden data-file>`);
+    s.el.querySelector("[data-x]").onclick = () => s.close();
+
+    const reset = s.el.querySelector("[data-reset]");
+    if (reset) reset.onclick = () => {
+      Store.updateProfile(u.id, { profileBg: null });
+      s.close();
+      UI.toast("已恢复默认背景", "success");
+      render();
+    };
+
+    const file = s.el.querySelector("[data-file]");
+    s.el.querySelector("[data-upload]").onclick = () => file.click();
+    file.onchange = async () => {
+      const f = file.files && file.files[0];
+      if (!f) return;
+      try {
+        const src = await UI.readImage(f, { max: 1280, quality: 0.75 });
+        Store.updateProfile(u.id, { profileBg: { type: "image", src } });
+        s.close();
+        UI.toast("背景已更新", "success");
+        render();
+      } catch (err) { UI.toast(err.message || "图片处理失败", "error"); }
+    };
+
+    s.el.querySelectorAll("[data-v]").forEach(el => el.onclick = () => {
+      Store.updateProfile(u.id, { profileBg: { type: "color", value: el.dataset.v } });
+      s.close();
+      UI.toast("背景已更新", "success");
       render();
     });
   }
@@ -177,6 +289,8 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "个人信息" });
   body.addEventListener("click", e => {
     const av = e.target.closest("[data-avatar]");
     if (av) { openAvatar(); return; }
+    const bg = e.target.closest("[data-bg]");
+    if (bg) { openBg(); return; }
     const cp = e.target.closest("[data-copy]");
     if (cp) {
       const done = () => UI.toast("已复制", "success");
