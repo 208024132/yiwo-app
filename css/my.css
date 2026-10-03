@@ -4,6 +4,8 @@
 
 /* 用户卡 */
 .user-card { display: flex; align-items: center; gap: 14px; padding: 18px 16px; }
+a.user-card { cursor: pointer; transition: transform 0.14s ease; }
+a.user-card:active { transform: scale(0.985); }
 .user-card .uc-main { flex: 1; min-width: 0; }
 .uc-name { font-size: var(--fs-lg); }
 .uc-sign { margin-top: 2px; }
