@@ -219,6 +219,13 @@
 .toast.error .toast-ico { background: var(--danger); }
 .toast.info .toast-ico { background: var(--primary); }
 .toast.warn .toast-ico { background: var(--warning); }
+.toast.toast-act { pointer-events: auto; padding-right: 8px; }
+.toast .toast-btn {
+  margin-left: 2px; padding: 3px 11px; border-radius: 999px; border: none; cursor: pointer;
+  background: var(--primary-soft); color: var(--primary-strong);
+  font-size: var(--fs-xs); font-weight: 700;
+}
+.toast .toast-btn:active { transform: scale(0.94); }
 
 /* ---------- 弹窗 ---------- */
 .mask {
