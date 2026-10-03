@@ -88,7 +88,12 @@
   }
   .sn-name { font-weight: 800; font-size: 16px; line-height: 1.25; }
   .sn-sub { font-size: 11px; color: var(--text-3); margin-top: 1px; }
-  .sn-items { flex: 1; display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
+  .sn-items { flex: 0 0 auto; display: flex; flex-direction: column; gap: 4px; padding-top: 8px; }
+  .sn-modules { flex: 1 1 auto; overflow-y: auto; padding-top: 2px; }
+  .sn-group {
+    margin: 12px 0 4px; padding: 0 14px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.06em; color: var(--text-3);
+  }
   .sn-item {
     display: flex; align-items: center; gap: 12px; padding: 11px 14px;
     border-radius: 12px; color: var(--text-2); font-weight: 600; font-size: 14px;
