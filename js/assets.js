@@ -27,13 +27,18 @@ UserShell.boot({ tab: "assets", title: "资产" });
   /* ---------- 总资产卡片 ---------- */
   const typeMeta = key => Store.WALLET_TYPES.find(t => t.key === key) || { e: "👛", name: "其他" };
   const money = n => Number(n || 0).toLocaleString("zh-CN", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  let folded = false;
+  try { folded = localStorage.getItem("yiwo_assets_fold") === "1"; } catch (e) { /* 忽略隐私模式 */ }
 
   function renderWalletCard() {
     const card = body.querySelector("#asset-card");
     if (!card) return;
     const ws = Store.walletSummary(u.id);
     card.innerHTML = `
-      <div class="ac-title">💰 总资产</div>
+      <div class="ac-head">
+        <span class="ac-title">💰 总资产</span>
+        <button class="ac-fold" data-fold aria-label="${folded ? "展开资产卡" : "折叠资产卡"}" aria-expanded="${!folded}">${UI.icon("chevron-down", 18)}</button>
+      </div>
       <div class="ac-total num">¥${money(ws.total)}</div>
       <div class="ac-split">
         <div class="ac-box"><span class="ac-box-l">可流动</span><span class="ac-box-v num">¥${money(ws.liquid)}</span></div>
@@ -73,6 +78,15 @@ UserShell.boot({ tab: "assets", title: "资产" });
         <button class="ac-add ac-add-debt" data-add-debt>+ 添加负债</button>
       </div>
     `;
+
+    card.classList.toggle("folded", folded);
+    card.querySelector("[data-fold]").onclick = () => {
+      folded = !folded;
+      try { localStorage.setItem("yiwo_assets_fold", folded ? "1" : "0"); } catch (e) { /* 忽略 */ }
+      card.classList.toggle("folded", folded);
+      const btn = card.querySelector("[data-fold]");
+      if (btn) { btn.setAttribute("aria-expanded", String(!folded)); btn.setAttribute("aria-label", folded ? "展开资产卡" : "折叠资产卡"); }
+    };
 
     card.querySelectorAll(".ac-chip[data-id]").forEach(chip => {
       chip.onclick = e => { if (e.target.closest(".ac-x")) return; openWalletSheet(chip.dataset.id); };
