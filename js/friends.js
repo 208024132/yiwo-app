@@ -67,7 +67,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
       <div class="sheet-head"><h3>评论</h3><button class="icon-btn" data-close>${UI.icon("close", 18)}</button></div>
       <div class="cmt-list">${list || `<div class="cmt-none">还没有评论，来抢沙发～</div>`}</div>
       <div class="cmt-inputbar">
-        <input class="input" placeholder="写下你的评论…" maxlength="100">
+        <input class="input" placeholder="写下你的评论…" maxlength="100" aria-label="评论内容">
         <button class="btn primary sm" data-send>发送</button>
       </div>`);
     const input = s.el.querySelector("input");
@@ -135,7 +135,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
     const pc = pendingCount();
     box.innerHTML = `
       <div class="search-row">
-        <div class="search-bar friends-search">${UI.icon("search", 18)}<input placeholder="搜索好友" value="${UI.esc(kw)}"></div>
+        <div class="search-bar friends-search">${UI.icon("search", 18)}<input placeholder="搜索好友" value="${UI.esc(kw)}" aria-label="搜索好友"></div>
         <a class="btn ghost sm add-friend-entry" href="add-friend.html">${UI.icon("plus", 15)} 添加</a>
       </div>
       <div class="list mt-8">
@@ -222,7 +222,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
     const box = document.getElementById("friends-content");
     box.innerHTML = `
       <div class="search-row">
-        <div class="search-bar friends-search">${UI.icon("search", 18)}<input placeholder="搜索消息" value="${UI.esc(mkw)}"></div>
+        <div class="search-bar friends-search">${UI.icon("search", 18)}<input placeholder="搜索消息" value="${UI.esc(mkw)}" aria-label="搜索消息"></div>
       </div>
       <div id="msg-box"></div>`;
     const si = box.querySelector(".friends-search input");
