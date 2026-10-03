@@ -83,6 +83,36 @@
 .ac-chip-debt { background: color-mix(in srgb, #f2545b 26%, transparent); }
 .ac-add-debt { margin-top: 12px; }
 
+/* 快速记一笔 */
+.qe-card { margin-top: 14px; }
+.qe-title { font-size: var(--fs-sm); font-weight: 700; margin-bottom: 12px; }
+.qe-cats {
+  display: flex; gap: 8px; overflow-x: auto; padding: 10px 2px 2px; margin: 0 -2px;
+  scrollbar-width: none; -webkit-overflow-scrolling: touch;
+}
+.qe-cats::-webkit-scrollbar { display: none; }
+.qe-cat {
+  flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px; padding: 7px 12px;
+  border-radius: 999px; background: var(--card-2); border: 1.5px solid transparent;
+  font-size: var(--fs-sm); color: var(--text-2); white-space: nowrap;
+  transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+.qe-cat.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-strong); font-weight: 700; }
+.qe-cat-e { font-size: 14px; line-height: 1; }
+.qe-row { display: flex; gap: 10px; margin-top: 12px; }
+.qe-amount {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  background: var(--card-2); border-radius: var(--radius); padding: 0 14px;
+}
+.qe-yen { font-size: var(--fs-lg); font-weight: 700; color: var(--text-3); }
+.qe-input {
+  flex: 1; min-width: 0; width: 100%; border: none; outline: none; background: transparent;
+  padding: 12px 0; font-size: var(--fs-lg); font-weight: 700; color: var(--text);
+}
+.qe-input::placeholder { font-weight: 600; color: var(--text-3); }
+.qe-save { flex-shrink: 0; padding-left: 22px; padding-right: 22px; }
+.qe-acc { margin-top: 10px; padding: 9px 12px; font-size: var(--fs-sm); color: var(--text-2); }
+
 /* 图表容器 */
 .chart-box { width: 100%; }
 
