@@ -42,7 +42,7 @@ UserShell.boot({ tab: null, title: "添加好友", back: "friends.html", hideTab
 
     body.innerHTML = `
       <div class="search-row">
-        <div class="search-bar">${UI.icon("search", 18)}<input id="kw" placeholder="搜索昵称 / 用户ID / 账号" value="${UI.esc(kw)}"></div>
+        <div class="search-bar">${UI.icon("search", 18)}<input id="kw" placeholder="搜索昵称 / 用户ID / 账号" value="${UI.esc(kw)}" aria-label="搜索用户"></div>
         <button class="btn primary sm" id="search-btn">搜索</button>
       </div>
       <div class="section-title"><h2>${q ? "搜索结果" : "推荐用户"}</h2></div>
