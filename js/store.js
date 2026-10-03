@@ -463,6 +463,29 @@ window.Store = (() => {
     if (m && m.uid === uid) { m.privacy = privacy; persist(); return true; }
     return false;
   }
+  // 删除自己的动态，返回被删对象（供撤销恢复）
+  function delMoment(mid, uid) {
+    const i = db.moments.findIndex(m => m.id === mid);
+    if (i < 0) return null;
+    if (uid && db.moments[i].uid !== uid) return null;
+    const removed = db.moments.splice(i, 1)[0];
+    if (removed.orig) {
+      const o = db.moments.find(m => m.id === removed.orig.id);
+      if (o) o.reposts = Math.max(0, (o.reposts || 0) - 1);
+    }
+    persist();
+    return removed;
+  }
+  // 撤销删除动态
+  function restoreMoment(m) {
+    if (!m) return;
+    db.moments.push(m);
+    if (m.orig) {
+      const o = db.moments.find(x => x.id === m.orig.id);
+      if (o) o.reposts = (o.reposts || 0) + 1;
+    }
+    persist();
+  }
 
   /* ---------- 资产 / 记账 ---------- */
   function listRecords(uid) {
@@ -477,7 +500,17 @@ window.Store = (() => {
     return rec;
   }
   function delRecord(uid, rid) {
-    db.accounts[uid] = (db.accounts[uid] || []).filter(r => r.id !== rid);
+    const list = db.accounts[uid] || [];
+    const i = list.findIndex(r => r.id === rid);
+    if (i < 0) return null;
+    const removed = list.splice(i, 1)[0];
+    persist();
+    return removed;
+  }
+  function restoreRecord(uid, rec) {
+    if (!rec) return;
+    if (!db.accounts[uid]) db.accounts[uid] = [];
+    db.accounts[uid].push(rec);
     persist();
   }
   function getSummary(uid) {
@@ -626,6 +659,21 @@ window.Store = (() => {
     if (!localStorage.getItem("yiwo_theme") && patch.defaultTheme) {
       window.Theme && Theme.apply(patch.defaultTheme);
     }
+  }
+
+  /* ---------- 数据备份（导出 / 导入） ---------- */
+  function exportBackup() {
+    return JSON.stringify({ __yiwo: true, version: 2, exportedAt: Date.now(), data: db });
+  }
+  function importBackup(text) {
+    let obj;
+    try { obj = JSON.parse(text); } catch (e) { return { ok: false, msg: "文件内容不是有效的 JSON" }; }
+    const next = obj && obj.__yiwo ? obj.data : obj;
+    if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav"].forEach(k => { if (!next[k]) next[k] = {}; });
+    db = next;
+    persist();
+    return { ok: true };
   }
 
   /* ---------- 我的页面宫格排序 ---------- */
@@ -821,9 +869,9 @@ window.Store = (() => {
     // 对话
     getMessages, getConversations, sendMessage, markRead, clearChat, deleteChat,
     // 动态
-    listMoments, toggleLike, addComment, repost, addMoment, setMomentPrivacy,
+    listMoments, toggleLike, addComment, repost, addMoment, setMomentPrivacy, delMoment, restoreMoment,
     // 资产
-    listRecords, addRecord, delRecord, getSummary,
+    listRecords, addRecord, delRecord, restoreRecord, getSummary,
     // 书架
     recommendBooks, myBooks, addToShelf, removeFromShelf, setProgress,
     // 备忘录
@@ -836,6 +884,8 @@ window.Store = (() => {
     getSettings, saveSettings,
     // 排序
     getOrder, saveOrder,
+    // 数据备份
+    exportBackup, importBackup,
     // 管理员
     loginAdmin, listAdmins, addAdmin, updateAdmin, hasPerm,
     // 仪表盘
