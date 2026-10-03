@@ -239,7 +239,13 @@ window.Store = (() => {
   });
   if (dirty) persist();
 
-  function persist() { localStorage.setItem(KEY, JSON.stringify(db)); }
+  function persist() {
+    try { localStorage.setItem(KEY, JSON.stringify(db)); }
+    catch (e) {
+      console.warn("persist failed", e);
+      if (window.UI && UI.toast) UI.toast("本地存储空间不足，请减少本地图片后再试", "error");
+    }
+  }
   function save() { persist(); }
 
   /* ---------- 会话与用户 ---------- */
