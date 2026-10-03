@@ -28,11 +28,15 @@ UserShell.boot({ tab: "assets", title: "资产" });
         <button class="ac-fold" data-fold aria-label="${folded ? "展开资产卡" : "折叠资产卡"}" aria-expanded="${!folded}">${UI.icon("chevron-down", 18)}</button>
       </div>
       <div class="ac-total num">¥${money(ws.total)}</div>
+      <div class="ac-net">
+        <span class="ac-net-l">净资产（总资产 − 负债）</span>
+        <span class="ac-net-v num ${ws.net < 0 ? "neg" : ""}">¥${money(ws.net)}</span>
+      </div>
       <div class="ac-split">
         <div class="ac-box"><span class="ac-box-l">可流动</span><span class="ac-box-v num">¥${money(ws.liquid)}</span></div>
         <div class="ac-box"><span class="ac-box-l">不可流动</span><span class="ac-box-v num">¥${money(ws.frozen)}</span></div>
       </div>
-      <div class="ac-hint">${ws.count} 个账户 · 点击账户可编辑</div>
+      <div class="ac-hint">${ws.count} 个账户 · ${ws.debts.length} 项负债 · 点击可编辑</div>
       ${ws.groups.map(g => `
         <div class="ac-group">
           <div class="ac-group-h">${g.name}<span class="ac-cnt">${g.items.length}</span></div>
@@ -219,30 +223,70 @@ UserShell.boot({ tab: "assets", title: "资产" });
     });
   }
 
-  function bindQuickEntry() {
+  function bindQuickEntry(wallets, debts) {
     const seg = body.querySelector(".seg-qe");
     if (!seg) return;
+    const catWrap = body.querySelector("[data-qe-cats]");
+    const debtWrap = body.querySelector("[data-qe-debt-wrap]");
+    const amt = body.querySelector("[data-qe-amt]");
+    const acc = body.querySelector("[data-qe-acc]");
+    const debt = body.querySelector("[data-qe-debt]");
+    const saveBtn = body.querySelector("[data-qe-save]");
+    if (!amt || !saveBtn) return;
+
+    // 依据类型切换：支出/收入显示分类，还债显示负债选择
+    function syncType() {
+      const isRepay = qeType === "repay";
+      if (catWrap) catWrap.style.display = isRepay ? "none" : "";
+      if (debtWrap) debtWrap.style.display = isRepay ? "" : "none";
+      saveBtn.textContent = isRepay ? "还债" : "记账";
+      if (isRepay) {
+        if (acc && !acc.value && wallets[0]) acc.value = wallets[0].id; // 还债必须选付款账户
+        if (debt && debts.length) amt.placeholder = debts[0].amount.toFixed(2);
+      } else {
+        renderQeCats();
+      }
+    }
+
     seg.querySelectorAll("button").forEach(b => {
       b.onclick = () => {
         qeType = b.dataset.type;
         seg.querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b));
-        renderQeCats();
+        syncType();
       };
     });
-    renderQeCats();
 
-    const amt = body.querySelector("[data-qe-amt]");
-    const acc = body.querySelector("[data-qe-acc]");
+    if (debt) {
+      debt.onchange = () => {
+        const d = debts.find(x => x.id === debt.value);
+        if (d) amt.placeholder = d.amount.toFixed(2);
+      };
+    }
+
     const save = () => {
       const v = Number(amt.value);
       if (!v || v <= 0) { UI.toast("请输入有效金额", "warn"); amt.focus(); return; }
+      if (qeType === "repay") {
+        const r = Store.repayDebt(u.id, {
+          debtId: debt ? debt.value : "",
+          accId: acc ? acc.value : "",
+          amount: v, date: UI.dayStr(0),
+        });
+        if (!r.ok) { UI.toast(r.msg, "warn"); return; }
+        UI.toast("已还债 ¥" + v.toFixed(2), "success");
+        amt.value = "";
+        renderAll();
+        return;
+      }
       Store.addRecord(u.id, { type: qeType, cat: qeCat, amount: v, note: "", date: UI.dayStr(0), accId: acc && acc.value ? acc.value : null });
       UI.toast("已记一笔" + (qeType === "out" ? "支出" : "收入"), "success");
       amt.value = "";
       renderAll();
     };
-    body.querySelector("[data-qe-save]").onclick = save;
+    saveBtn.onclick = save;
     amt.onkeydown = e => { if (e.key === "Enter") { e.preventDefault(); save(); } };
+
+    syncType();
   }
 
   /* ---------- 整页渲染 ---------- */
@@ -259,6 +303,9 @@ UserShell.boot({ tab: "assets", title: "资产" });
       donutItems.push({ label: "其他", value: restTotal, color: PALETTE[6] });
     }
 
+    const debts = Store.listDebts(u.id);
+    const canRepay = wallets.length > 0 && debts.length > 0;
+    if (qeType === "repay" && !canRepay) qeType = "out";
     const recent = Store.listRecords(u.id).slice(0, 5);
 
     const catBlock = summary.byCat.length
@@ -284,8 +331,15 @@ UserShell.boot({ tab: "assets", title: "资产" });
         <div class="seg seg-qe">
           <button type="button" data-type="out" class="${qeType === "out" ? "on" : ""}">支出</button>
           <button type="button" data-type="in" class="${qeType === "in" ? "on" : ""}">收入</button>
+          ${canRepay ? `<button type="button" data-type="repay" class="${qeType === "repay" ? "on" : ""}">还债</button>` : ""}
         </div>
         <div class="qe-cats" data-qe-cats></div>
+        ${canRepay ? `
+        <div class="qe-debt" data-qe-debt-wrap>
+          <select class="input qe-acc" data-qe-debt aria-label="选择要还的负债">
+            ${debts.map(d => `<option value="${d.id}">${UI.esc(d.name)}（欠 ¥${money(d.amount)}）</option>`).join("")}
+          </select>
+        </div>` : ""}
         <div class="qe-row">
           <div class="qe-amount">
             <span class="qe-yen">¥</span>
@@ -312,11 +366,14 @@ UserShell.boot({ tab: "assets", title: "资产" });
       <section class="card fade-in">
         ${recent.length ? recent.map(r => {
           const isIn = r.type === "in";
+          const isRepay = r.type === "repay";
+          const ico = isRepay ? "💳" : catEmoji(r.cat);
+          const label = r.note || (isRepay ? "还债" : catName(r.cat));
           return `
           <div class="rec-item">
-            <span class="rec-ico">${catEmoji(r.cat)}</span>
+            <span class="rec-ico">${ico}</span>
             <div class="rec-main">
-              <div class="rec-note ellipsis">${UI.esc(r.note || catName(r.cat))}</div>
+              <div class="rec-note ellipsis">${UI.esc(label)}</div>
               <div class="rec-date">${UI.fmtDate(r.t)}</div>
             </div>
             <span class="rec-amt ${isIn ? "in" : "out"} num">${isIn ? "+" : "-"}${UI.fmtMoney(r.amount)}</span>
@@ -338,7 +395,7 @@ UserShell.boot({ tab: "assets", title: "资产" });
     const donutCanvas = body.querySelector(".donut-canvas canvas");
     if (donutCanvas && donutItems.length) Charts.donut(donutCanvas, donutItems, { centerLabel: "支出" });
 
-    bindQuickEntry();
+    bindQuickEntry(wallets, debts);
     body.querySelector("#go-accounting").onclick = () => { location.href = "accounting.html"; };
   }
 
