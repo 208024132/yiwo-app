@@ -6,9 +6,9 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
   const u = Store.currentUser();
   if (!u) return;
   const body = document.getElementById("accounting-body");
-  const CATS = Store.CATS;
-  const EXPENSE_CATS = CATS.filter(c => c.key !== "income");
-  const INCOME_CATS = [CATS.find(c => c.key === "income")];
+  // 分类 = 内置分类 + 用户自定义（自定义收支理由）
+  const catsOf = t => Store.listCats(u.id, t === "in" ? "in" : "out");
+  const catOf = (key, t) => Store.catInfo(u.id, key, t === "in" ? "in" : "out");
 
   let dateOffset = 0; // -6 .. 0
 
@@ -34,7 +34,7 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
       <section class="card fade-in mt-12">
         ${recs.length ? recs.map(r => {
           const isIn = r.type === "in";
-          const c = r.type === "repay" ? { e: "💳", name: "还债" } : (CATS.find(x => x.key === r.cat) || { e: "📦", name: r.cat });
+          const c = r.type === "repay" ? { e: "💳", name: "还债" } : catOf(r.cat, r.type);
           const acc = r.accId ? Store.listWallets(u.id).find(a => a.id === r.accId) : null;
           return `
           <div class="rec-row">
@@ -76,7 +76,7 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
   /* 记一笔弹层 */
   function openSheet() {
     let type = "out";
-    let cat = EXPENSE_CATS[0].key;
+    let cat = catsOf("out")[0].key;
     const wallets = Store.listWallets(u.id);
 
     const s = UI.sheet(`
@@ -104,7 +104,7 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
     const segBtns = s.el.querySelectorAll(".seg-type button");
 
     function renderCats() {
-      const list = type === "out" ? EXPENSE_CATS : INCOME_CATS;
+      const list = catsOf(type);
       catGrid.innerHTML = list.map(c => `
         <button class="cat-cell ${c.key === cat ? "on" : ""}" data-cat="${c.key}">
           <span class="cat-e">${c.e}</span>
@@ -122,7 +122,7 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
       btn.onclick = () => {
         type = btn.dataset.type;
         segBtns.forEach(b => b.classList.toggle("on", b === btn));
-        cat = type === "out" ? EXPENSE_CATS[0].key : "income";
+        cat = catsOf(type)[0].key;
         renderCats();
       };
     });
