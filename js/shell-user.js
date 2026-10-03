@@ -12,6 +12,16 @@ window.UserShell = (() => {
     { key: "my", icon: "user", href: "my.html" },
   ];
 
+  // 桌面端侧边栏补充的功能模块（移动端由首页/我的宫格承载）
+  const MODULES = [
+    { name: "记账", icon: "wallet", href: "accounting.html" },
+    { name: "健身打卡", icon: "flame", href: "fitness.html" },
+    { name: "任务进度", icon: "target", href: "tasks.html" },
+    { name: "备忘录", icon: "memo", href: "memo.html" },
+    { name: "阅读书架", icon: "book", href: "bookshelf.html" },
+    { name: "我的动态", icon: "sparkles", href: "moments.html" },
+  ];
+
   function user() { return Store.currentUser(); }
 
   /**
@@ -85,6 +95,13 @@ window.UserShell = (() => {
             <a class="sn-item ${tab === t.key ? "on" : ""}" href="${t.href}">
               <span class="sn-ico">${UI.icon(t.icon, 20)}</span>${UI.esc(t.label)}
               ${t.key === "friends" && pending > 0 ? `<span class="sn-badge">${pending}</span>` : ""}
+            </a>`).join("")}
+        </nav>
+        <div class="sn-group">功能</div>
+        <nav class="sn-items sn-modules">
+          ${MODULES.map(m => `
+            <a class="sn-item" href="${m.href}">
+              <span class="sn-ico">${UI.icon(m.icon, 20)}</span>${UI.esc(m.name)}
             </a>`).join("")}
         </nav>
         <div class="sn-user">
