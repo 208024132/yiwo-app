@@ -72,6 +72,32 @@ window.UI = (() => {
     }, ms);
   }
 
+  /* ---------- 带操作按钮的 Toast（用于「撤销」等） ---------- */
+  function toastAction(msg, { label = "撤销", onAct, type = "info", ms = 4500 } = {}) {
+    if (!toastWrap) {
+      toastWrap = document.createElement("div");
+      toastWrap.className = "toast-wrap";
+      document.body.appendChild(toastWrap);
+    }
+    const icons = { success: "✓", error: "✕", warn: "!", info: "i" };
+    const el = document.createElement("div");
+    el.className = `toast ${type} toast-act`;
+    el.innerHTML = `<span class="toast-ico">${icons[type] || "i"}</span><span>${esc(msg)}</span>`;
+    const btn = document.createElement("button");
+    btn.className = "toast-btn";
+    btn.textContent = label;
+    btn.onclick = () => {
+      el.remove();
+      if (onAct) onAct();
+    };
+    el.appendChild(btn);
+    toastWrap.appendChild(el);
+    setTimeout(() => {
+      el.classList.add("out");
+      setTimeout(() => el.remove(), 260);
+    }, ms);
+  }
+
   /* ---------- 弹层 ---------- */
   function maskEl() {
     const m = document.createElement("div");
@@ -314,10 +340,8 @@ window.UI = (() => {
     }
     requestAnimationFrame(step);
   }
-  function reflow() { /* 占位 */ }
-
   return {
-    icon, toast, sheet, dialog, confirm, promptInput,
+    icon, toast, toastAction, sheet, dialog, confirm, promptInput,
     fmtMoney, fmtWan, dayStr, fmtDate, fmtDateTime, fmtTime, timeAgo,
     avatarEl, photoBox, readImage, qzInter, qzActs, esc, uid, emptyBox, debounce, countUp,
   };
