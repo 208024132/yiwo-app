@@ -120,7 +120,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
         <button class="icon-btn" data-x>${UI.icon("close", 18)}</button></div>
       <div class="cmt-list">${listHtml}</div>
       <div class="cmt-inputbar">
-        <input class="input cmt-in" placeholder="说点什么…" maxlength="120">
+        <input class="input cmt-in" placeholder="说点什么…" maxlength="120" aria-label="评论内容">
         <button class="btn primary cmt-send">发送</button>
       </div>`);
 
@@ -160,7 +160,16 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
     });
     s.el.querySelector(".del-row").onclick = () => {
       s.close();
-      UI.toast("演示版暂不支持删除，可设为「仅自己」", "info");
+      UI.confirm("删除这条动态？", "删除后短时间内可以点「撤销」找回。", { okText: "删除", danger: true }).then(ok => {
+        if (!ok) return;
+        const removed = Store.delMoment(mid, u.id);
+        if (!removed) { UI.toast("删除失败", "error"); return; }
+        render();
+        UI.toastAction("动态已删除", {
+          label: "撤销",
+          onAct: () => { Store.restoreMoment(removed); render(); UI.toast("已恢复这条动态", "success"); },
+        });
+      });
     };
   }
 
