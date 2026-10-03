@@ -62,7 +62,7 @@ UserShell.boot({ tab: null, title: dispName, back: "friends.html", hideTab: true
       <div class="sheet-head"><h3>评论</h3><button class="icon-btn" data-close>${UI.icon("close", 18)}</button></div>
       <div class="cmt-list">${list || `<div class="cmt-none">还没有评论，来抢沙发～</div>`}</div>
       <div class="cmt-inputbar">
-        <input class="input" placeholder="写下你的评论…" maxlength="100">
+        <input class="input" placeholder="写下你的评论…" maxlength="100" aria-label="评论内容">
         <button class="btn primary sm" data-send>发送</button>
       </div>`);
     const input = s.el.querySelector("input");
