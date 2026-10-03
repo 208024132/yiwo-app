@@ -21,8 +21,7 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
   function momentCard(m) {
     const au = Store.getUser(m.uid) || { nickname: "神秘人", avatarEmoji: "🙂", avatarColor: 0 };
     const liked = (m.likes || []).includes(u.id);
-    const photos = (m.photos || []).map(p =>
-      `<span class="m-photo" style="background:${p.g}">${p.e}</span>`).join("");
+    const photos = (m.photos || []).map(p => UI.photoBox(p)).join("");
     let text;
     if (m.text) text = UI.esc(m.text);
     else if (m.type === "repost" && m.orig) {
@@ -40,12 +39,8 @@ UserShell.boot({ tab: "friends", title: "好友", right: null });
         </div>
         <div class="m-text">${text}</div>
         ${photos ? `<div class="m-photos" style="grid-template-columns:${(m.photos.length > 1) ? "repeat(2,1fr)" : "1fr"}">${photos}</div>` : ""}
-        <div class="m-actions">
-          <button class="m-act ${liked ? "on" : ""}" data-act="like"><span class="m-act-ico">${UI.icon("like", 18)}</span>${(m.likes || []).length}</button>
-          <button class="m-act" data-act="comment"><span class="m-act-ico">${UI.icon("comment", 18)}</span>${(m.comments || []).length}</button>
-          <button class="m-act" data-act="share"><span class="m-act-ico">${UI.icon("share", 18)}</span>${m.reposts || 0}</button>
-        </div>
-        ${(m.likes || []).length ? `<div class="m-likers txt-xs txt-3">❤️ ${m.likes.map(x => UI.esc(nameOf(x))).join("、")}</div>` : ""}
+        ${UI.qzInter({ likes: m.likes || [], comments: m.comments || [], nameOf })}
+        ${UI.qzActs({ liked, likes: (m.likes || []).length, comments: (m.comments || []).length, reposts: m.reposts || 0 })}
       </article>`;
   }
 
