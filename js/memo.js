@@ -11,7 +11,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "备忘录" });
   body.innerHTML = `
     <div class="mi-search">
       ${UI.icon("search", 18)}
-      <input type="text" placeholder="搜索笔记" data-search>
+      <input type="text" placeholder="搜索笔记" data-search aria-label="搜索笔记">
     </div>
     <div class="mi-tabs">
       <button data-f="all" class="on">全部</button>
