@@ -55,6 +55,14 @@ UserShell.boot({ tab: "my", title: "我的" });
         </span>
         <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
       </a>
+      <a class="list-item tap" id="backup-entry">
+        <span class="li-ico">${UI.icon("shield", 20)}</span>
+        <span class="li-main">
+          <span class="li-title">数据备份</span>
+          <span class="li-sub">导出 / 导入本地数据</span>
+        </span>
+        <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
+      </a>
       <a class="list-item tap" id="about-entry">
         <span class="li-ico">${UI.icon("info", 20)}</span>
         <span class="li-main"><span class="li-title">关于以我</span></span>
@@ -189,6 +197,9 @@ function bindSort() {
 
 /* ---------- 列表交互 ---------- */
 function bindList() {
+  const backup = document.getElementById("backup-entry");
+  if (backup) backup.onclick = openBackup;
+
   const about = document.getElementById("about-entry");
   if (about) {
     about.onclick = () => {
@@ -201,7 +212,7 @@ function bindList() {
         </div>
         <div class="about-rows">
           <p class="txt-sm txt-2">基于思维导图「以我 APP」设计</p>
-          <p class="txt-sm txt-2">演示数据存于本地</p>
+          <p class="txt-sm txt-2">数据保存在本机，可在「数据备份」中导出</p>
         </div>`);
       s.el.querySelector("[data-close]").onclick = s.close;
     };
@@ -216,4 +227,48 @@ function bindList() {
       location.href = "login.html";
     };
   }
+}
+
+/* ---------- 数据备份 ---------- */
+function openBackup() {
+  const s = UI.sheet(`
+    <div class="sheet-head"><h3>数据备份</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
+    <p class="backup-tip">数据保存在本机浏览器中，清理缓存或更换设备会丢失。建议定期导出备份文件保存到别处。</p>
+    <div class="backup-actions">
+      <button class="btn primary block" data-export>导出备份文件</button>
+      <button class="btn ghost block" data-import>导入备份文件</button>
+    </div>
+    <input type="file" accept="application/json,.json" hidden data-file>`);
+  s.el.querySelector("[data-close]").onclick = s.close;
+
+  s.el.querySelector("[data-export]").onclick = () => {
+    const txt = Store.exportBackup();
+    const d = new Date();
+    const pad = n => (n < 10 ? "0" + n : "" + n);
+    const name = `yiwo-backup-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`;
+    const url = URL.createObjectURL(new Blob([txt], { type: "application/json" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = name;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    UI.toast("备份文件已导出", "success");
+  };
+
+  const file = s.el.querySelector("[data-file]");
+  s.el.querySelector("[data-import]").onclick = () => file.click();
+  file.onchange = () => {
+    const f = file.files && file.files[0];
+    if (!f) return;
+    const fr = new FileReader();
+    fr.onload = () => {
+      const r = Store.importBackup(String(fr.result || ""));
+      if (!r.ok) { UI.toast(r.msg, "error"); return; }
+      UI.confirm("导入成功", "需要重新加载页面才能看到新数据，是否立即刷新？", { okText: "立即刷新" })
+        .then(ok => { if (ok) location.reload(); else s.close(); });
+    };
+    fr.onerror = () => UI.toast("文件读取失败", "error");
+    fr.readAsText(f);
+  };
 }
