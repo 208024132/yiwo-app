@@ -618,21 +618,43 @@ window.Store = (() => {
     const r = (db.accounts[uid] || []).slice().sort((a, b) => b.t - a.t);
     return r;
   }
-  function addRecord(uid, { type, cat, amount, note = "", date, accId = null }) {
+  // dir=1 应用记录影响；dir=-1 撤销记录影响（删除/撤销删除时使用）
+  function applyRecord(uid, rec, dir) {
+    const cash = rec.type === "in" ? 1 : -1; // 收入加钱；支出/还债扣钱
+    if (rec.accId) adjustWallet(uid, rec.accId, dir * cash * rec.amount);
+    if (rec.type === "repay" && rec.debtId) {
+      const d = (db.debts[uid] || []).find(x => x.id === rec.debtId);
+      if (d) d.amount = Number((d.amount - dir * rec.amount).toFixed(2));
+    }
+  }
+  function addRecord(uid, { type, cat, amount, note = "", date, accId = null, debtId = null }) {
     const amt = Number(amount);
-    const rec = { id: "a" + Date.now(), type, cat, amount: amt, note, date, accId: accId || null, t: Date.now() };
+    const rec = { id: "a" + Date.now(), type, cat, amount: amt, note, date, accId: accId || null, debtId: debtId || null, t: Date.now() };
     if (!db.accounts[uid]) db.accounts[uid] = [];
     db.accounts[uid].push(rec);
-    if (rec.accId) adjustWallet(uid, rec.accId, type === "in" ? amt : -amt);
+    applyRecord(uid, rec, 1);
     persist();
     return rec;
+  }
+  // 用某个账户给某笔负债还债：扣账户余额 + 减少负债
+  function repayDebt(uid, { debtId, accId, amount, note = "", date }) {
+    const amt = Number(amount) || 0;
+    if (amt <= 0) return { ok: false, msg: "请输入还款金额" };
+    const d = (db.debts[uid] || []).find(x => x.id === debtId);
+    if (!d) return { ok: false, msg: "请选择要还的负债" };
+    const a = (db.wallets[uid] || []).find(x => x.id === accId);
+    if (!a) return { ok: false, msg: "请选择付款账户" };
+    if (amt > d.amount + 0.001) return { ok: false, msg: "还款金额超过欠款（剩余 ¥" + d.amount.toFixed(2) + "）" };
+    if (amt > a.balance + 0.001) return { ok: false, msg: "账户余额不足（可用 ¥" + a.balance.toFixed(2) + "）" };
+    const rec = addRecord(uid, { type: "repay", cat: "debt", amount: amt, note: note || ("还 " + d.name), date, accId, debtId });
+    return { ok: true, rec };
   }
   function delRecord(uid, rid) {
     const list = db.accounts[uid] || [];
     const i = list.findIndex(r => r.id === rid);
     if (i < 0) return null;
     const removed = list.splice(i, 1)[0];
-    if (removed.accId) adjustWallet(uid, removed.accId, removed.type === "in" ? -removed.amount : removed.amount);
+    applyRecord(uid, removed, -1);
     persist();
     return removed;
   }
@@ -640,7 +662,7 @@ window.Store = (() => {
     if (!rec) return;
     if (!db.accounts[uid]) db.accounts[uid] = [];
     db.accounts[uid].push(rec);
-    if (rec.accId) adjustWallet(uid, rec.accId, rec.type === "in" ? rec.amount : -rec.amount);
+    applyRecord(uid, rec, 1);
     persist();
   }
   function getSummary(uid) {
@@ -649,7 +671,8 @@ window.Store = (() => {
     const byCat = {};
     rs.forEach(r => {
       if (r.type === "in") income += r.amount;
-      else { expense += r.amount; byCat[r.cat] = (byCat[r.cat] || 0) + r.amount; }
+      else if (r.type === "out") { expense += r.amount; byCat[r.cat] = (byCat[r.cat] || 0) + r.amount; }
+      // 还债（repay）是资产与负债之间的转移，不计入收支统计
     });
     const trend = [];
     for (let off = -6; off <= 0; off++) {
@@ -1003,7 +1026,7 @@ window.Store = (() => {
     // 资产账户 / 负债 / 记账
     listWallets, walletSummary, addWallet, updateWallet, delWallet, restoreWallet,
     listDebts, addDebt, updateDebt, delDebt, restoreDebt,
-    listRecords, addRecord, delRecord, restoreRecord, getSummary,
+    listRecords, addRecord, repayDebt, delRecord, restoreRecord, getSummary,
     // 书架
     recommendBooks, myBooks, addToShelf, removeFromShelf, setProgress,
     // 备忘录
