@@ -34,7 +34,7 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
       <section class="card fade-in mt-12">
         ${recs.length ? recs.map(r => {
           const isIn = r.type === "in";
-          const c = CATS.find(x => x.key === r.cat) || { e: "📦", name: r.cat };
+          const c = r.type === "repay" ? { e: "💳", name: "还债" } : (CATS.find(x => x.key === r.cat) || { e: "📦", name: r.cat });
           const acc = r.accId ? Store.listWallets(u.id).find(a => a.id === r.accId) : null;
           return `
           <div class="rec-row">
