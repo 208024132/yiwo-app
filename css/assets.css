@@ -56,6 +56,18 @@
 }
 .ac-add:active { background: color-mix(in srgb, var(--on-primary) 12%, transparent); }
 
+/* 负债模块 */
+.ac-debt {
+  margin-top: 16px; padding-top: 14px;
+  border-top: 1px solid color-mix(in srgb, var(--on-primary) 20%, transparent);
+}
+.ac-debt-h { display: flex; align-items: center; justify-content: space-between; padding: 0 2px; }
+.ac-debt-title { font-size: var(--fs-sm); font-weight: 700; opacity: 0.94; }
+.ac-debt-total { font-weight: 800; font-size: var(--fs-sm); }
+.ac-hint-debt { margin: 8px 2px 0; }
+.ac-chip-debt { background: color-mix(in srgb, #f2545b 26%, transparent); }
+.ac-add-debt { margin-top: 12px; }
+
 /* 图表容器 */
 .chart-box { width: 100%; }
 
