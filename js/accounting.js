@@ -35,12 +35,13 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
         ${recs.length ? recs.map(r => {
           const isIn = r.type === "in";
           const c = CATS.find(x => x.key === r.cat) || { e: "📦", name: r.cat };
+          const acc = r.accId ? Store.listWallets(u.id).find(a => a.id === r.accId) : null;
           return `
           <div class="rec-row">
             <span class="rec-ico">${c.e}</span>
             <div class="rec-main">
               <div class="rec-note ellipsis">${UI.esc(r.note || c.name)}</div>
-              <div class="rec-time txt-xs txt-3">${UI.fmtTime(r.t)} · ${UI.esc(c.name)}</div>
+              <div class="rec-time txt-xs txt-3">${UI.fmtTime(r.t)} · ${UI.esc(c.name)}${acc ? " · " + UI.esc(acc.name) : ""}</div>
             </div>
             <span class="rec-amt ${isIn ? "in" : "out"} num">${isIn ? "+" : "-"}¥${r.amount.toFixed(2)}</span>
             <button class="icon-btn rec-del" data-id="${r.id}" aria-label="删除">${UI.icon("trash", 18)}</button>
@@ -76,6 +77,7 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
   function openSheet() {
     let type = "out";
     let cat = EXPENSE_CATS[0].key;
+    const wallets = Store.listWallets(u.id);
 
     const s = UI.sheet(`
       <div class="sheet-head"><h3>记一笔</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
@@ -85,12 +87,19 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
       </div>
       <div class="cat-grid grid-4 mt-12"></div>
       <div class="field mt-16"><label>金额</label><input class="input" type="number" step="0.01" placeholder="0.00" inputmode="decimal" data-amount></div>
+      <div class="field"><label>账户</label>
+        <select class="input" data-acc>
+          <option value="">不关联账户</option>
+          ${wallets.map(a => `<option value="${a.id}">${UI.esc(a.name)}（¥${a.balance.toFixed(2)}）</option>`).join("")}
+        </select>
+      </div>
       <div class="field"><label>备注</label><input class="input" type="text" placeholder="写点什么…" maxlength="30" data-note></div>
       <div class="sheet-actions"><button class="btn primary block" data-save>保存</button></div>
     `);
 
     const catGrid = s.el.querySelector(".cat-grid");
     const amountInput = s.el.querySelector("[data-amount]");
+    const accSel = s.el.querySelector("[data-acc]");
     const noteInput = s.el.querySelector("[data-note]");
     const segBtns = s.el.querySelectorAll(".seg-type button");
 
@@ -123,7 +132,7 @@ UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true 
     s.el.querySelector("[data-save]").onclick = () => {
       const amt = Number(amountInput.value);
       if (!amt || amt <= 0) { UI.toast("请输入有效金额", "warn"); return; }
-      Store.addRecord(u.id, { type, cat, amount: amt, note: noteInput.value.trim(), date: curDate() });
+      Store.addRecord(u.id, { type, cat, amount: amt, note: noteInput.value.trim(), date: curDate(), accId: accSel.value || null });
       s.close();
       UI.toast("记账成功");
       render();
