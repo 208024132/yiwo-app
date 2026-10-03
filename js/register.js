@@ -35,7 +35,7 @@
       return;
     }
     err("account").textContent = "";
-    UI.toast("验证码已发送（演示环境请输入任意 6 位数字）", "info");
+    UI.toast("验证码已发送，请输入 6 位验证码", "info");
   };
 
   // 提交
