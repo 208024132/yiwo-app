@@ -54,15 +54,33 @@ UserShell.boot({ tab: "assets", title: "资产" });
           </div>
         </div>`).join("")}
       <button class="ac-add" data-add>+ 添加账户</button>
+
+      <div class="ac-debt">
+        <div class="ac-debt-h">
+          <span class="ac-debt-title">负债</span>
+          <span class="ac-debt-total num">¥${money(ws.debt)}</span>
+        </div>
+        ${ws.debts.length ? `
+        <div class="ac-chips">
+          ${ws.debts.map(d => `
+            <div class="ac-chip ac-chip-debt" data-did="${d.id}" role="button" tabindex="0" aria-label="编辑负债 ${UI.esc(d.name)}">
+              <span class="ac-x" data-ddel="${d.id}" aria-label="删除负债">${UI.icon("close", 12)}</span>
+              <span class="ac-chip-ico">💳</span>
+              <span class="ac-chip-name ellipsis">${UI.esc(d.name)}</span>
+              <span class="ac-chip-val num">${money(d.amount)}</span>
+            </div>`).join("")}
+        </div>` : `<div class="ac-hint ac-hint-debt">还没有负债记录</div>`}
+        <button class="ac-add ac-add-debt" data-add-debt>+ 添加负债</button>
+      </div>
     `;
 
-    card.querySelectorAll(".ac-chip").forEach(chip => {
+    card.querySelectorAll(".ac-chip[data-id]").forEach(chip => {
       chip.onclick = e => { if (e.target.closest(".ac-x")) return; openWalletSheet(chip.dataset.id); };
       chip.onkeydown = e => {
         if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openWalletSheet(chip.dataset.id); }
       };
     });
-    card.querySelectorAll(".ac-x").forEach(x => {
+    card.querySelectorAll(".ac-x[data-del]").forEach(x => {
       x.onclick = async e => {
         e.stopPropagation();
         const id = x.dataset.del;
@@ -79,6 +97,54 @@ UserShell.boot({ tab: "assets", title: "资产" });
       };
     });
     card.querySelector("[data-add]").onclick = () => openWalletSheet(null);
+
+    card.querySelectorAll(".ac-chip[data-did]").forEach(chip => {
+      chip.onclick = e => { if (e.target.closest(".ac-x")) return; openDebtSheet(chip.dataset.did); };
+      chip.onkeydown = e => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openDebtSheet(chip.dataset.did); }
+      };
+    });
+    card.querySelectorAll(".ac-x[data-ddel]").forEach(x => {
+      x.onclick = async e => {
+        e.stopPropagation();
+        const id = x.dataset.ddel;
+        const item = Store.listDebts(u.id).find(d => d.id === id);
+        const ok = await UI.confirm("删除这条负债？", `「${item ? item.name : "该负债"}」将从负债模块中移除。`, { okText: "删除", danger: true });
+        if (!ok) return;
+        const removed = Store.delDebt(u.id, id);
+        renderWalletCard();
+        if (!removed) return;
+        UI.toastAction("负债已删除", {
+          label: "撤销",
+          onAct: () => { Store.restoreDebt(u.id, removed); renderWalletCard(); UI.toast("已恢复负债", "success"); },
+        });
+      };
+    });
+    card.querySelector("[data-add-debt]").onclick = () => openDebtSheet(null);
+  }
+
+  function openDebtSheet(id) {
+    const editing = id ? Store.listDebts(u.id).find(d => d.id === id) : null;
+    const s = UI.sheet(`
+      <div class="sheet-head"><h3>${editing ? "编辑负债" : "添加负债"}</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
+      <div class="field"><label>负债名称</label><input class="input" type="text" maxlength="12" placeholder="如：信用卡 / 花呗" value="${editing ? UI.esc(editing.name) : ""}" data-name></div>
+      <div class="field"><label>欠款金额</label><input class="input" type="number" step="0.01" inputmode="decimal" placeholder="0.00" value="${editing ? editing.amount : ""}" data-amt></div>
+      <div class="sheet-actions"><button class="btn primary block" data-save>保存</button></div>
+    `);
+    s.el.querySelector("[data-close]").onclick = s.close;
+    const nameInput = s.el.querySelector("[data-name]");
+    const amtInput = s.el.querySelector("[data-amt]");
+    s.el.querySelector("[data-save]").onclick = () => {
+      const name = nameInput.value.trim();
+      if (!name) { UI.toast("请输入负债名称", "warn"); return; }
+      const amount = Number(amtInput.value) || 0;
+      if (editing) Store.updateDebt(u.id, editing.id, { name, amount });
+      else Store.addDebt(u.id, { name, amount });
+      s.close();
+      UI.toast(editing ? "负债已更新" : "负债已添加", "success");
+      renderWalletCard();
+    };
+    setTimeout(() => nameInput.focus(), 150);
   }
 
   function openWalletSheet(id) {
