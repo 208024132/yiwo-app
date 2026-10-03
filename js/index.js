@@ -25,6 +25,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
     <div class="banner-bar ${b.tone || "grad"} fade-in">${UI.icon("sparkles", 16)}<span>${UI.esc(b.text)}</span></div>`).join("");
 
   const summary = Store.getSummary(u.id);
+  const totalAssets = Store.walletSummary(u.id).total;
   const fit = Store.fitnessOf(u.id);
   const todayExpense = summary.trend.length ? summary.trend[summary.trend.length - 1].amount : 0;
 
@@ -43,7 +44,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
       <div class="stat-mini">
         <span class="sm-ico">${UI.icon("wallet", 16)}</span>
         <span class="sm-label">总资产</span>
-        <span class="sm-val num" data-count="${summary.balance}"></span>
+        <span class="sm-val num" data-count="${totalAssets}"></span>
       </div>
       <div class="stat-mini">
         <span class="sm-ico">${UI.icon("pie", 16)}</span>
@@ -117,5 +118,5 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
 
   // 总资产数字滚动
   const cntEl = body.querySelector("[data-count]");
-  if (cntEl) UI.countUp(cntEl, summary.balance, UI.fmtMoney, 800);
+  if (cntEl) UI.countUp(cntEl, totalAssets, UI.fmtMoney, 800);
 })();
