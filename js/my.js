@@ -24,15 +24,15 @@ UserShell.boot({ tab: "my", title: "我的" });
   const curTheme = Theme.byId(Theme.current());
 
   body.innerHTML = `
-    <section class="card user-card fade-in">
-      <a class="uc-ava" href="profile.html" aria-label="个人信息">${UI.avatarEl(u, "xl")}</a>
+    <a class="card user-card fade-in" href="profile.html" aria-label="个人信息">
+      <span class="uc-ava">${UI.avatarEl(u, "xl")}</span>
       <div class="uc-main">
         <div class="uc-name bold">${UI.esc(u.nickname)}</div>
         <div class="uc-sign txt-sm txt-2 ellipsis">${UI.esc(u.signature || "这个人很懒，什么都没写")}</div>
         <div class="uc-id txt-xs txt-3">ID：${UI.esc(u.id)}</div>
       </div>
-      <a class="icon-btn uc-edit" href="profile.html" aria-label="编辑资料">${UI.icon("edit", 20)}</a>
-    </section>
+      <span class="icon-btn uc-edit">${UI.icon("edit", 20)}</span>
+    </a>
 
     <div class="sort-tip mt-16">
       ${UI.icon("info", 14)}<span class="txt-xs txt-3">长按拖动图标可调整功能顺序</span>
