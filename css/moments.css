@@ -12,28 +12,18 @@
 
 .m-text { margin-top: 10px; color: var(--text); line-height: 1.6; word-break: break-word; }
 .m-photo {
-  margin-top: 10px; height: 180px; border-radius: 16px;
-  display: flex; align-items: center; justify-content: center; font-size: 56px;
+  margin-top: 10px; border-radius: 16px; display: flex; align-items: center;
+  justify-content: center; font-size: 56px; width: 100%; aspect-ratio: 16 / 10; min-height: 140px;
 }
-.m-photo-sm { height: 96px; font-size: 34px; margin-top: 10px; }
+.m-photo-sm { min-height: 96px; font-size: 34px; margin-top: 10px; }
+.m-photos { margin-top: 10px; display: grid; gap: 8px; }
+.m-photos .m-photo { margin-top: 0; font-size: 34px; min-height: 110px; aspect-ratio: 16 / 10; }
 
 .m-repost-tip { margin-top: 10px; font-size: var(--fs-sm); color: var(--text-2); }
 .m-repost-card { margin-top: 8px; background: var(--card-2); border-radius: 14px; padding: 12px; }
 .m-repost-card .m-text { margin-top: 0; color: var(--text-2); }
 
-.m-actions {
-  display: flex; align-items: center; gap: 6px; margin-top: 12px;
-  border-top: 1px solid var(--line-soft); padding-top: 10px;
-}
-.m-action {
-  display: inline-flex; align-items: center; gap: 5px; color: var(--text-2);
-  padding: 6px 12px; border-radius: 999px; font-size: var(--fs-sm); font-weight: 600;
-}
-.m-action:active { background: var(--card-2); }
-.m-action.on { color: var(--primary); }
-.m-action.on svg { fill: currentColor; }
-.m-repost-count { margin-left: auto; display: inline-flex; align-items: center; gap: 4px; color: var(--text-3); font-size: var(--fs-xs); }
-.m-likers { margin-top: 8px; line-height: 1.5; }
+/* QQ空间式互动区样式见 components.css（.qz-* / .m-acts） */
 
 /* 谁可以看 sheet */
 .priv-list { display: flex; flex-direction: column; }
@@ -63,7 +53,7 @@
 
 /* 发布 sheet */
 .pub-label { font-size: var(--fs-sm); font-weight: 600; color: var(--text-2); margin: 14px 0 8px; }
-.pub-photos { display: flex; gap: 10px; }
+.pub-photos { display: flex; gap: 10px; flex-wrap: wrap; }
 .pub-photo {
   width: 72px; height: 72px; border-radius: 14px; display: flex; align-items: center;
   justify-content: center; font-size: 28px; cursor: pointer; border: 2px solid transparent;
@@ -71,6 +61,17 @@
 }
 .pub-photo.on { border-color: var(--primary); }
 .pub-photo:active { transform: scale(0.95); }
+.pub-upload {
+  flex-direction: column; gap: 2px; font-size: 10px; font-weight: 600;
+  color: var(--text-3); background: var(--card-2); border: 1px dashed var(--line);
+}
+.pub-local { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
+.pub-thumb { position: relative; width: 72px; height: 72px; border-radius: 14px; overflow: hidden; }
+.pub-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.pub-thumb-x {
+  position: absolute; top: 3px; right: 3px; width: 20px; height: 20px; border-radius: 50%;
+  background: rgba(0, 0, 0, 0.55); color: #fff; display: flex; align-items: center; justify-content: center;
+}
 .pub-seg { margin-top: 4px; }
 
 /* FAB */
