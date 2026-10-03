@@ -6,11 +6,10 @@ UserShell.boot({ tab: "assets", title: "资产" });
   const u = Store.currentUser();
   if (!u) return;
   const body = document.getElementById("assets-body");
-  const CATS = Store.CATS;
   const PALETTE = ["#f2994a", "#56ccf2", "#9b6cf7", "#f76f8e", "#48c6c0", "#f2c94c", "#8e9eab", "#a1e657"];
 
-  const catName = key => { const c = CATS.find(x => x.key === key); return c ? c.name : String(key); };
-  const catEmoji = key => { const c = CATS.find(x => x.key === key); return c ? c.e : "📦"; };
+  const catName = (key, type = "out") => Store.catInfo(u.id, key, type).name;
+  const catEmoji = (key, type = "out") => Store.catInfo(u.id, key, type).e;
 
   /* ---------- 总资产卡片 ---------- */
   const typeMeta = key => Store.WALLET_TYPES.find(t => t.key === key) || { e: "👛", name: "其他" };
@@ -204,7 +203,8 @@ UserShell.boot({ tab: "assets", title: "资产" });
   /* ---------- 快速记一笔 ---------- */
   let qeType = "out";
   let qeCat = "food";
-  const qeCats = () => qeType === "out" ? CATS.filter(c => c.key !== "income") : [CATS.find(c => c.key === "income")];
+  // 分类 = 内置分类 + 用户自定义（自定义收支理由）
+  const qeCats = () => Store.listCats(u.id, qeType === "in" ? "in" : "out");
 
   function renderQeCats() {
     const wrap = body.querySelector("[data-qe-cats]");
@@ -214,13 +214,127 @@ UserShell.boot({ tab: "assets", title: "资产" });
     wrap.innerHTML = list.map(c => `
       <button class="qe-cat ${c.key === qeCat ? "on" : ""}" type="button" data-cat="${c.key}">
         <span class="qe-cat-e">${c.e}</span><span class="qe-cat-n">${c.name}</span>
-      </button>`).join("");
-    wrap.querySelectorAll(".qe-cat").forEach(b => {
+      </button>`).join("") + `
+      <button class="qe-cat qe-cat-add" type="button" data-cat-add>
+        <span class="qe-cat-e">＋</span><span class="qe-cat-n">自定义</span>
+      </button>`;
+    wrap.querySelectorAll(".qe-cat[data-cat]").forEach(b => {
       b.onclick = () => {
         qeCat = b.dataset.cat;
-        wrap.querySelectorAll(".qe-cat").forEach(x => x.classList.toggle("on", x === b));
+        wrap.querySelectorAll(".qe-cat[data-cat]").forEach(x => x.classList.toggle("on", x === b));
       };
     });
+    wrap.querySelector("[data-cat-add]").onclick = () => openCatSheet();
+  }
+
+  /* ---------- 自定义收支理由（分类）管理 ---------- */
+  const CAT_EMOJI = ["🏷️", "🐱", "🐶", "🐾", "📚", "🎓", "🎁", "🎂", "💄", "👶", "🎵", "⚽", "✈️", "🚗", "💻", "💼", "🧾", "💡", "🍜", "🏠"];
+  let catEditKey = null;   // 正在编辑的自定义分类 key（null 表示新增）
+  let catPickedE = "🏷️";
+
+  function openCatSheet() {
+    catEditKey = null;
+    catPickedE = "🏷️";
+    const typeLabel = qeType === "in" ? "收入" : "支出";
+    const s = UI.sheet(`
+      <div class="sheet-head"><h3>自定义收支理由</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
+      <div class="field"><label>名称</label><input class="input" type="text" maxlength="6" placeholder="如：宠物 / 学习 / 副业" data-cat-name></div>
+      <div class="field"><label>选择图标</label><div class="cat-emoji" data-cat-emoji></div></div>
+      <div class="sheet-actions">
+        <button class="btn ghost" type="button" data-cat-cancel style="display:none">取消编辑</button>
+        <button class="btn primary" type="button" data-cat-save>添加</button>
+      </div>
+      <div class="cat-manage-t">已自定义 · ${typeLabel}（<span data-cat-count>0</span>）</div>
+      <div class="cat-manage" data-cat-list></div>
+    `);
+    s.el.querySelector("[data-close]").onclick = s.close;
+
+    const nameInput = s.el.querySelector("[data-cat-name]");
+    const emojiWrap = s.el.querySelector("[data-cat-emoji]");
+    const saveBtn = s.el.querySelector("[data-cat-save]");
+    const cancelBtn = s.el.querySelector("[data-cat-cancel]");
+    const listWrap = s.el.querySelector("[data-cat-list]");
+    const countEl = s.el.querySelector("[data-cat-count]");
+
+    emojiWrap.innerHTML = CAT_EMOJI.map(e => `<button type="button" class="cat-emoji-b" data-e="${e}">${e}</button>`).join("");
+    const paintEmoji = () => emojiWrap.querySelectorAll(".cat-emoji-b").forEach(b => b.classList.toggle("on", b.dataset.e === catPickedE));
+    emojiWrap.querySelectorAll(".cat-emoji-b").forEach(b => {
+      b.onclick = () => { catPickedE = b.dataset.e; paintEmoji(); };
+    });
+    paintEmoji();
+
+    function renderList() {
+      const list = Store.customCats(u.id, qeType === "in" ? "in" : "out");
+      countEl.textContent = list.length;
+      if (!list.length) {
+        listWrap.innerHTML = `<div class="cat-manage-empty">还没有自定义分类，在上方添加一个吧</div>`;
+        return;
+      }
+      listWrap.innerHTML = list.map(c => `
+        <div class="cat-manage-row">
+          <span class="cat-manage-e">${c.e}</span>
+          <span class="cat-manage-n ellipsis">${UI.esc(c.name)}</span>
+          <button class="icon-btn" type="button" data-edit="${c.key}" aria-label="编辑 ${UI.esc(c.name)}">${UI.icon("edit", 16)}</button>
+          <button class="icon-btn" type="button" data-del="${c.key}" aria-label="删除 ${UI.esc(c.name)}">${UI.icon("trash", 16)}</button>
+        </div>`).join("");
+      listWrap.querySelectorAll("[data-edit]").forEach(b => {
+        b.onclick = () => {
+          const c = Store.customCats(u.id).find(x => x.key === b.dataset.edit);
+          if (!c) return;
+          catEditKey = c.key;
+          catPickedE = c.e;
+          nameInput.value = c.name;
+          saveBtn.textContent = "保存修改";
+          cancelBtn.style.display = "";
+          paintEmoji();
+          nameInput.focus();
+        };
+      });
+      listWrap.querySelectorAll("[data-del]").forEach(b => {
+        b.onclick = async () => {
+          const c = Store.customCats(u.id).find(x => x.key === b.dataset.del);
+          if (!c) return;
+          const ok = await UI.confirm("删除这个分类？", `「${c.name}」将不再出现在分类里，历史记录仍会保留。`, { okText: "删除", danger: true });
+          if (!ok) return;
+          const removed = Store.delCat(u.id, c.key);
+          if (catEditKey === c.key) resetForm();
+          else renderList();
+          if (removed) UI.toastAction("分类已删除", {
+            label: "撤销",
+            onAct: () => { Store.restoreCat(u.id, removed); renderList(); UI.toast("已恢复分类", "success"); },
+          });
+        };
+      });
+    }
+
+    function resetForm() {
+      catEditKey = null;
+      catPickedE = "🏷️";
+      nameInput.value = "";
+      saveBtn.textContent = "添加";
+      cancelBtn.style.display = "none";
+      paintEmoji();
+      renderList();
+    }
+
+    cancelBtn.onclick = resetForm;
+
+    saveBtn.onclick = () => {
+      const wasEdit = !!catEditKey;
+      const name = nameInput.value.trim();
+      const r = wasEdit
+        ? Store.updateCat(u.id, catEditKey, { name, e: catPickedE })
+        : Store.addCat(u.id, { type: qeType === "in" ? "in" : "out", name, e: catPickedE });
+      if (!r.ok) { UI.toast(r.msg, "warn"); return; }
+      const key = catEditKey || r.cat.key;
+      resetForm();
+      qeCat = key;
+      renderQeCats();
+      UI.toast(wasEdit ? "分类已更新" : "分类已添加", "success");
+    };
+
+    renderList();
+    setTimeout(() => nameInput.focus(), 150);
   }
 
   function bindQuickEntry(wallets, debts) {
@@ -367,8 +481,8 @@ UserShell.boot({ tab: "assets", title: "资产" });
         ${recent.length ? recent.map(r => {
           const isIn = r.type === "in";
           const isRepay = r.type === "repay";
-          const ico = isRepay ? "💳" : catEmoji(r.cat);
-          const label = r.note || (isRepay ? "还债" : catName(r.cat));
+          const ico = isRepay ? "💳" : catEmoji(r.cat, r.type);
+          const label = r.note || (isRepay ? "还债" : catName(r.cat, r.type));
           return `
           <div class="rec-item">
             <span class="rec-ico">${ico}</span>
