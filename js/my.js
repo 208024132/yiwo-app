@@ -25,7 +25,7 @@ UserShell.boot({ tab: "my", title: "我的" });
 
   body.innerHTML = `
     <section class="card user-card fade-in">
-      <span class="uc-ava">${UI.avatarEl(u, "xl")}</span>
+      <a class="uc-ava" href="profile.html" aria-label="个人信息">${UI.avatarEl(u, "xl")}</a>
       <div class="uc-main">
         <div class="uc-name bold">${UI.esc(u.nickname)}</div>
         <div class="uc-sign txt-sm txt-2 ellipsis">${UI.esc(u.signature || "这个人很懒，什么都没写")}</div>
