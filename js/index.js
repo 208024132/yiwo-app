@@ -87,7 +87,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
             <div class="hm-text clamp-2">${UI.esc(m.text || "转发了动态")}</div>
             <div class="hm-time">${UI.timeAgo(m.t)}</div>
           </div>
-          ${photo ? `<span class="hm-photo" style="background:${photo.g}">${photo.e}</span>` : ""}
+          ${photo ? UI.photoBox(photo, "hm-photo") : ""}
         </div>`;
       }).join("") : UI.emptyBox("🍃", "还没有好友动态", "去添加好友，看看大家都在做什么")}
     </section>`;
