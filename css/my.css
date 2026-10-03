@@ -60,3 +60,7 @@ a.user-card:active { transform: scale(0.985); }
   margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line-soft);
   display: flex; flex-direction: column; gap: 8px;
 }
+
+/* 数据备份 */
+.backup-tip { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.75; margin: 4px 2px 16px; }
+.backup-actions { display: flex; flex-direction: column; gap: 10px; }
