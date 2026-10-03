@@ -239,6 +239,7 @@ window.Store = (() => {
       users, friends, friendReqs, chats, moments, accounts, books, memos, fitness, tasks, admins,
       wallets: seedWallets(),
       debts: seedDebts(),
+      customCats: {},
       order: { u10001: ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"] },
       groups: {},
       friendGroup: {},
@@ -274,6 +275,7 @@ window.Store = (() => {
   });
   if (!db.wallets) { db.wallets = seedWallets(); dirty = true; }
   if (!db.debts) { db.debts = seedDebts(); dirty = true; }
+  if (!db.customCats) { db.customCats = {}; dirty = true; }
   if (dirty) persist();
 
   function persist() {
@@ -686,6 +688,65 @@ window.Store = (() => {
     };
   }
 
+  /* ---------- 自定义收支分类（记一笔的「理由」） ---------- */
+  function customCats(uid, type) {
+    const list = (db.customCats && db.customCats[uid]) || [];
+    return type ? list.filter(c => c.type === type) : list.slice();
+  }
+  // 内置分类 + 用户自定义分类（按收/支类型）
+  function listCats(uid, type) {
+    const base = type === "in"
+      ? CATS.filter(c => c.key === "income")
+      : CATS.filter(c => c.key !== "income");
+    return base.concat(customCats(uid, type));
+  }
+  function catInfo(uid, key, type) {
+    const c = listCats(uid, type).find(x => x.key === key);
+    if (c) return c;
+    return type === "in" ? { key, name: "收入", e: "💰" } : { key, name: "其他", e: "📦" };
+  }
+  function addCat(uid, { type = "out", name = "", e = "🏷️" } = {}) {
+    name = String(name || "").trim();
+    if (!name) return { ok: false, msg: "请输入分类名称" };
+    if (name.length > 6) return { ok: false, msg: "分类名称不超过 6 个字" };
+    if (listCats(uid, type).some(c => c.name === name)) return { ok: false, msg: "该分类已存在" };
+    if (!db.customCats) db.customCats = {};
+    if (!db.customCats[uid]) db.customCats[uid] = [];
+    const cat = { key: "c" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), name, e: e || "🏷️", type, custom: true };
+    db.customCats[uid].push(cat);
+    persist();
+    return { ok: true, cat };
+  }
+  function updateCat(uid, key, { name, e } = {}) {
+    const c = ((db.customCats && db.customCats[uid]) || []).find(x => x.key === key);
+    if (!c) return { ok: false, msg: "只能编辑自定义分类" };
+    if (name !== undefined) {
+      name = String(name).trim();
+      if (!name) return { ok: false, msg: "请输入分类名称" };
+      if (name.length > 6) return { ok: false, msg: "分类名称不超过 6 个字" };
+      if (listCats(uid, c.type).some(x => x.name === name && x.key !== key)) return { ok: false, msg: "该分类已存在" };
+      c.name = name;
+    }
+    if (e !== undefined) c.e = e || "🏷️";
+    persist();
+    return { ok: true, cat: c };
+  }
+  function delCat(uid, key) {
+    const list = (db.customCats && db.customCats[uid]) || [];
+    const i = list.findIndex(x => x.key === key);
+    if (i < 0) return null;
+    const removed = list.splice(i, 1)[0];
+    persist();
+    return removed;
+  }
+  function restoreCat(uid, cat) {
+    if (!cat) return;
+    if (!db.customCats) db.customCats = {};
+    if (!db.customCats[uid]) db.customCats[uid] = [];
+    db.customCats[uid].push(cat);
+    persist();
+  }
+
   /* ---------- 书架 ---------- */
   function recommendBooks() { return db.books.recommend; }
   function myBooks(uid) {
@@ -823,7 +884,7 @@ window.Store = (() => {
     try { obj = JSON.parse(text); } catch (e) { return { ok: false, msg: "文件内容不是有效的 JSON" }; }
     const next = obj && obj.__yiwo ? obj.data : obj;
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
-    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts"].forEach(k => { if (!next[k]) next[k] = {}; });
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats"].forEach(k => { if (!next[k]) next[k] = {}; });
     db = next;
     persist();
     return { ok: true };
@@ -1027,6 +1088,7 @@ window.Store = (() => {
     listWallets, walletSummary, addWallet, updateWallet, delWallet, restoreWallet,
     listDebts, addDebt, updateDebt, delDebt, restoreDebt,
     listRecords, addRecord, repayDebt, delRecord, restoreRecord, getSummary,
+    customCats, listCats, catInfo, addCat, updateCat, delCat, restoreCat,
     // 书架
     recommendBooks, myBooks, addToShelf, removeFromShelf, setProgress,
     // 备忘录
