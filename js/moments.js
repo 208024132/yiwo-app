@@ -1,5 +1,5 @@
 /* 我的动态：全部/照片动态流 + 权限设置 + 发布 */
-UserShell.boot({ hideTab: true, back: "my.html", title: "我的动态" });
+UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.moments") });
 
 (() => {
   const u = Store.currentUser();
