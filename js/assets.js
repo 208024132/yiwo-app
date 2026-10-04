@@ -1,6 +1,6 @@
 /* 资产页：余额总览 + 近 7 日支出折线 + 支出分类环形 + 最近记录 */
 
-UserShell.boot({ tab: "assets", title: "资产" });
+UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
 
 (() => {
   const u = Store.currentUser();
@@ -468,15 +468,15 @@ UserShell.boot({ tab: "assets", title: "资产" });
         </select>` : ""}
       </section>
 
-      <section class="section-title"><h2>近 7 日支出</h2></section>
+      <section class="section-title"><h2>${UI.esc(Store.getTitle("assets.trend"))}</h2></section>
       <section class="card fade-in">
         <div class="chart-box"><canvas></canvas></div>
       </section>
 
-      <section class="section-title"><h2>支出分类</h2></section>
+      <section class="section-title"><h2>${UI.esc(Store.getTitle("assets.cat"))}</h2></section>
       <section class="card fade-in">${catBlock}</section>
 
-      <section class="section-title"><h2>最近记录</h2></section>
+      <section class="section-title"><h2>${UI.esc(Store.getTitle("assets.recent"))}</h2></section>
       <section class="card fade-in">
         ${recent.length ? recent.map(r => {
           const isIn = r.type === "in";
