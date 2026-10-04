@@ -1,6 +1,6 @@
 /* 添加好友页逻辑 */
 
-UserShell.boot({ tab: null, title: "添加好友", back: "friends.html", hideTab: true });
+UserShell.boot({ tab: null, title: Store.getTitle("page.addFriend"), back: "friends.html", hideTab: true });
 
 (() => {
   const u = Store.currentUser();
@@ -45,7 +45,7 @@ UserShell.boot({ tab: null, title: "添加好友", back: "friends.html", hideTab
         <div class="search-bar">${UI.icon("search", 18)}<input id="kw" placeholder="搜索昵称 / 用户ID / 账号" value="${UI.esc(kw)}" aria-label="搜索用户"></div>
         <button class="btn primary sm" id="search-btn">搜索</button>
       </div>
-      <div class="section-title"><h2>${q ? "搜索结果" : "推荐用户"}</h2></div>
+      <div class="section-title"><h2>${UI.esc(Store.getTitle(q ? "addFriend.result" : "addFriend.recommend"))}</h2></div>
       ${results.length
         ? `<div class="result-list">${results.map(rowHtml).join("")}</div>`
         : UI.emptyBox("🔍", "没有找到相关用户", "换个关键词试试吧")}`;
