@@ -7,8 +7,8 @@
 .theme-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
 .theme-card {
   position: relative; background: var(--card); border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-sm); overflow: hidden; cursor: pointer;
-  border: 2px solid transparent; transition: transform 0.16s ease, box-shadow 0.16s ease;
+  box-shadow: none; overflow: hidden; cursor: pointer;
+  border: 2px solid var(--line); transition: transform 0.16s ease, box-shadow 0.16s ease, border-color 0.16s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .theme-card:active { transform: scale(0.97); }

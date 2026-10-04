@@ -32,7 +32,7 @@
 
 /* 好友分组 */
 .grp-bar { display: flex; align-items: center; justify-content: space-between; margin: 20px 2px 10px; }
-.grp { position: relative; background: var(--card); border-radius: var(--radius-lg); box-shadow: var(--shadow-sm); overflow: hidden; }
+.grp { position: relative; background: var(--card); border-radius: var(--radius-lg); border: 1px solid var(--line); overflow: hidden; }
 .grp + .grp { margin-top: 10px; }
 .grp-head {
   display: flex; align-items: center; gap: 8px; padding: 12px 14px;

@@ -26,21 +26,17 @@
   bottom: calc(10px + env(safe-area-inset-bottom, 0px)); z-index: 200;
   width: min(calc(100vw - 24px), 496px);
   background: var(--nav-bg); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-radius: 26px; box-shadow: var(--shadow);
-  display: flex; padding: 7px 6px; border: 1px solid var(--line-soft);
+  border-radius: 20px; box-shadow: var(--shadow);
+  display: flex; padding: 6px 6px; border: 1px solid var(--line-soft);
 }
 .tabbar .tab {
   flex: 1; display: flex; flex-direction: column; align-items: center; gap: 3px;
-  padding: 5px 4px; border-radius: 18px; color: var(--text-3); position: relative;
-  font-size: 11px; font-weight: 600; transition: color 0.18s ease;
+  padding: 6px 4px; border-radius: 14px; color: var(--text-3); position: relative;
+  font-size: 11px; font-weight: 600; transition: color 0.18s ease, background 0.18s ease;
   -webkit-tap-highlight-color: transparent;
 }
 .tabbar .tab:active { background: var(--card-2); }
-.tabbar .tab.on { color: var(--primary); }
-.tabbar .tab.on::before {
-  content: ""; position: absolute; top: 0; left: 50%; transform: translateX(-50%);
-  width: 18px; height: 3px; border-radius: 999px; background: var(--grad);
-}
+.tabbar .tab.on { color: var(--primary); background: var(--primary-soft); }
 .tabbar .tab .tab-icon { display: flex; }
 .tabbar .tab .tab-badge {
   position: absolute; top: 4px; right: calc(50% - 20px); min-width: 16px; height: 16px;
@@ -82,7 +78,7 @@
   }
   .sn-brand { display: flex; align-items: center; gap: 10px; padding: 2px 10px 20px; }
   .sn-logo {
-    width: 40px; height: 40px; border-radius: 13px; background: var(--grad);
+    width: 40px; height: 40px; border-radius: 12px; background: var(--grad);
     color: var(--on-primary); display: flex; align-items: center; justify-content: center;
     font-weight: 800; font-size: 18px; box-shadow: var(--shadow-sm); flex-shrink: 0;
   }
@@ -232,7 +228,7 @@
 @media (min-width: 861px) {
   .admin-body .mask { align-items: center; padding: 24px; }
   .admin-body .mask .sheet {
-    width: 100%; max-width: 560px; border-radius: 24px;
+    width: 100%; max-width: 560px; border-radius: 18px;
     padding-bottom: 20px; animation: pop 0.24s cubic-bezier(0.34, 1.4, 0.64, 1) both;
   }
   /* 拖拽条是移动端手势提示，桌面隐藏 */

@@ -4,7 +4,7 @@
 
 /* 总资产卡（账户总览） */
 .asset-card {
-  background: var(--grad); color: var(--on-primary); border-radius: 24px;
+  background: var(--grad); color: var(--on-primary); border-radius: var(--radius-lg);
   padding: 18px 16px 16px; position: relative; overflow: hidden;
   box-shadow: var(--shadow);
 }

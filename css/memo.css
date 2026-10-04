@@ -22,7 +22,7 @@
 .mi-grid { columns: 2; column-gap: 10px; }
 .mi-note {
   break-inside: avoid; margin-bottom: 10px; padding: 12px 12px 8px;
-  background: var(--card); border: 1px solid var(--line-soft); border-radius: 16px;
+  background: var(--card); border: 1px solid var(--line-soft); border-radius: var(--radius-lg);
   cursor: pointer; transition: transform 0.14s ease, border-color 0.14s ease;
 }
 .mi-note:active { transform: scale(0.975); }

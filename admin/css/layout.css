@@ -12,9 +12,9 @@
 
 .theme-grid { gap: 12px; }
 .theme-card {
-  background: var(--card); border-radius: 16px; padding: 10px; cursor: pointer;
+  background: var(--card); border-radius: var(--radius-lg); padding: 10px; cursor: pointer;
   border: 2px solid transparent; transition: border-color 0.15s ease, transform 0.15s ease;
-  box-shadow: var(--shadow-sm); position: relative;
+  box-shadow: none; position: relative;
 }
 .theme-card:active { transform: scale(0.98); }
 .theme-card.on { border-color: var(--primary); }

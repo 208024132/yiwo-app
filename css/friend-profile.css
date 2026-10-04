@@ -2,7 +2,7 @@
 
 /* 头像渐变背景头卡 */
 .profile-hero {
-  background: var(--grad); color: var(--on-primary); border-radius: 24px;
+  background: var(--grad); color: var(--on-primary); border-radius: var(--radius-lg);
   padding: 26px 20px 22px; text-align: center; box-shadow: var(--shadow);
   position: relative; overflow: hidden;
 }

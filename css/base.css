@@ -256,9 +256,13 @@ ul, ol { list-style: none; }
   --warning: #e0a02c;
   --danger: #d9534f;
   --danger-soft: #fbe9e8;
-  --radius: 14px;
-  --radius-lg: 20px;
-  --radius-sm: 10px;
+  /* 中等圆角：卡片 14 / 控件 12 / 小元素 8 */
+  --radius: 12px;
+  --radius-lg: 14px;
+  --radius-sm: 8px;
+  /* 轻扁平：统一中性阴影（放在主题之后，覆盖各主题的彩色阴影，保证全站协调） */
+  --shadow-sm: 0 1px 2px rgba(17, 20, 26, 0.04), 0 2px 6px rgba(17, 20, 26, 0.035);
+  --shadow: 0 6px 20px rgba(17, 20, 26, 0.10), 0 2px 6px rgba(17, 20, 26, 0.055);
   --fs-xs: 12px;
   --fs-sm: 13px;
   --fs-base: 15px;
@@ -321,14 +325,14 @@ h1, h2, h3 { font-weight: 700; line-height: 1.3; }
   background: var(--bg); position: relative;
 }
 @media (min-width: 600px) {
-  body { background: #e9e4dc; }
+  body { background: #e7e9ec; }
   [data-theme="purple"] body { background: #0d0b13; }
   [data-theme="lime"] body { background: #e9f0d6; }
   [data-theme="mint"] body { background: #ddf0ec; }
   [data-theme="rose"] body { background: #f6e2ea; }
   [data-theme="slate"] body { background: #e4e8ed; }
   [data-theme="cream"] body { background: #f0e6d8; }
-  .page { box-shadow: 0 0 70px rgba(60, 40, 20, 0.16); }
+  .page { box-shadow: 0 0 60px rgba(20, 22, 28, 0.14); }
 }
 
 /* 内容区统一内边距（避开顶栏与底部 Tab） */

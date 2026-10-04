@@ -21,7 +21,7 @@
 .bubble-ava { flex-shrink: 0; }
 .bubble {
   max-width: 76%; padding: 10px 14px; border-radius: 16px; background: var(--card);
-  box-shadow: var(--shadow-sm); border: 1px solid var(--line-soft);
+  box-shadow: none; border: 1px solid var(--line-soft);
   font-size: var(--fs-base); line-height: 1.5; word-break: break-word;
 }
 .bubble-row:not(.mine) .bubble { border-bottom-left-radius: 6px; }
