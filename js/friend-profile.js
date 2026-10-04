@@ -130,7 +130,7 @@ UserShell.boot({ tab: null, title: dispName, back: "friends.html", hideTab: true
         <div class="list-item"><span class="info-label">地区</span><span class="info-val">${UI.esc(target.region || "未填写")}</span></div>
         <div class="list-item"><span class="info-label">注册时间</span><span class="info-val">${UI.fmtDate(target.regTime)}</span></div>
       </section>
-      <section class="section-title"><h2>TA 的动态</h2></section>
+      <section class="section-title"><h2>${UI.esc(Store.getTitle("friend.moments"))}</h2></section>
       ${moments.length ? `<div class="moments-feed">${moments.map(momentCard).join("")}</div>` : UI.emptyBox("🍃", "暂无动态")}
     `;
     bind();
