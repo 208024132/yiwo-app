@@ -1,5 +1,5 @@
 /* 备忘录：小米/HyperOS 风格卡片流 + 搜索 + 置顶 */
-UserShell.boot({ hideTab: true, back: "my.html", title: "备忘录" });
+UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.memo") });
 
 (() => {
   const u = Store.currentUser();
