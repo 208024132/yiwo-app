@@ -1,6 +1,6 @@
 /* 好友页逻辑：联系人（好友分组）/ 消息 / 动态，顶部导航可长按拖动排序 */
 
-UserShell.boot({ tab: "friends", title: "好友", right: null });
+UserShell.boot({ tab: "friends", title: Store.getTitle("page.friends"), right: null });
 
 (() => {
   const u = Store.currentUser();
