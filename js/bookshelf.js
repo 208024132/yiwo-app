@@ -1,5 +1,5 @@
 /* 阅读书架：推荐 / 我的书架 / 阅读进度 */
-UserShell.boot({ hideTab: true, back: "my.html", title: "阅读书架" });
+UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.bookshelf") });
 
 (() => {
   const u = Store.currentUser();
