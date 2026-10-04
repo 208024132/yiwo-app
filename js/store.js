@@ -1,10 +1,23 @@
 /* ============================================================
-   以我APP · 数据中心（localStorage 模拟后端）
+   以我APP · 数据中心（IndexedDB 持久化 + 内存镜像）
    用户端与管理后台共用同一份数据。
-   所有页面通过 window.Store 读写数据，不要直接操作 localStorage。
+   所有页面通过 window.Store 读写数据，不要直接操作存储层。
+
+   存储设计（本次把持久化介质从 localStorage 换成 IndexedDB）：
+   1. 权威数据存放在 IndexedDB（yiwo-db / kv / state 单条记录），
+      容量远大于 localStorage，不再因 5MB 上限静默丢数据；
+   2. 运行期在内存维护一份 db 镜像，Store 的所有方法同步读写它，
+      因此页面里 Store.listTasks(uid) 这类同步调用无需任何改动；
+   3. 内存镜像变更后 debounce 350ms 异步落盘；
+      切后台（visibilitychange）与离开页面（pagehide）立即 flush；
+   4. IndexedDB 只能异步读取，而页面脚本是同步执行的
+      （如 UserShell.boot 里同步调用 Store.currentUser() 做登录守卫），
+      为保证首屏拿到正确数据，额外维护一份 localStorage 引导快照
+      （yiwo_boot_v1）—— 它只是启动加速缓存，不是数据源，写失败可容忍；
+   5. 老版本数据（localStorage 的 yiwo_db_v2）在首次启动时自动迁移进
+      IndexedDB，确认写库成功后才删除旧那份，迁移失败则保留不动。
    ============================================================ */
 window.Store = (() => {
-  const KEY = "yiwo_db_v2";
   const pad = n => (n < 10 ? "0" + n : "" + n);
   const dayStr = off => {
     const d = new Date();
@@ -18,6 +31,18 @@ window.Store = (() => {
     d.setHours(h, m, 0, 0);
     return d.getTime();
   };
+
+  /* ---------- 存储常量 ---------- */
+  const LS_KEY = "yiwo_db_v2";      // 老版本 localStorage 业务数据：仅在迁移时读取，迁移成功后删除
+  const BOOT_KEY = "yiwo_boot_v1";  // 同步引导快照（启动加速缓存，非数据源）
+  const BOOT_BUDGET = 3.5 * 1024 * 1024; // 引导快照体积上限（字符数），超出则剔除图片后写入
+  const CACHE_THROTTLE = 800;       // 引导快照同步写入的最小间隔（ms）
+  const FLUSH_DELAY = 350;          // 内存镜像落盘 debounce（ms）
+  const IDB_NAME = "yiwo-db";       // IndexedDB 库名
+  const IDB_STORE = "kv";           // IndexedDB 对象仓库名
+  const IDB_KEY = "state";          // 整份 db 对应的固定 key
+  const IDB_VERSION = 1;            // 库版本（结构变更时递增）
+  const IMG_MARK = "yiwo-idb:";     // 引导快照里图片的占位标记（形如 yiwo-idb:m:p1:0）
 
   /* ---------- 常量配置 ---------- */
   const CATS = [
@@ -355,39 +380,367 @@ window.Store = (() => {
     };
   }
 
-  /* ---------- 加载 ---------- */
-  let db;
-  try {
-    db = JSON.parse(localStorage.getItem(KEY));
-  } catch (e) { db = null; }
-  let dirty = !db || !db.users;
-  if (!db || !db.users) db = seed();
-  // 旧数据补齐新增字段
-  ["remark", "chatHidden", "groups", "friendGroup", "friendNav"].forEach(k => {
-    if (!db[k]) { db[k] = {}; dirty = true; }
-  });
-  if (!db.wallets) { db.wallets = seedWallets(); dirty = true; }
-  if (!db.debts) { db.debts = seedDebts(); dirty = true; }
-  if (!db.customCats) { db.customCats = {}; dirty = true; }
-  if (ensureSettings()) dirty = true;
-  // 迁移：早期版本为用户预置了「与默认完全相同」的宫格顺序，会遮蔽后台默认顺序，这里清理掉
-  if (db.order) {
-    const DEF_ORDER = ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"];
-    Object.keys(db.order).forEach(k => {
-      const a = db.order[k];
-      if (Array.isArray(a) && a.length === DEF_ORDER.length && a.every((v, i) => v === DEF_ORDER[i])) { delete db.order[k]; dirty = true; }
-    });
-  }
-  if (dirty) persist();
+  /* ============================================================
+     IndexedDB 极简封装（原生 API，Promise 化，零第三方依赖）
+     ============================================================ */
+  const IDB = {
+    conn: null,     // 已打开的数据库连接，复用避免重复 open
+    failed: false,  // 打开失败后不再重试，降级为「内存 + localStorage 快照」
 
-  function persist() {
-    try { localStorage.setItem(KEY, JSON.stringify(db)); }
-    catch (e) {
-      console.warn("persist failed", e);
-      if (window.UI && UI.toast) UI.toast("本地存储空间不足，请减少本地图片后再试", "error");
+    /** 打开数据库，返回 Promise<IDBDatabase> */
+    open() {
+      if (this.conn) return Promise.resolve(this.conn);
+      if (this.failed || typeof indexedDB === "undefined" || !indexedDB) {
+        return Promise.reject(new Error("IndexedDB 不可用"));
+      }
+      return new Promise((resolve, reject) => {
+        let req;
+        try {
+          req = indexedDB.open(IDB_NAME, IDB_VERSION);
+        } catch (e) {
+          this.failed = true;
+          reject(e);
+          return;
+        }
+        req.onupgradeneeded = () => {
+          const database = req.result;
+          if (!database.objectStoreNames.contains(IDB_STORE)) database.createObjectStore(IDB_STORE);
+        };
+        req.onsuccess = () => {
+          this.conn = req.result;
+          // 其他标签页升级版本时关闭当前连接，下次操作自动重开
+          this.conn.onversionchange = () => { this.conn.close(); this.conn = null; };
+          resolve(this.conn);
+        };
+        req.onerror = () => {
+          this.failed = true;
+          reject(req.error || new Error("IndexedDB 打开失败"));
+        };
+        req.onblocked = () => { /* 有其他标签页占用旧版本，等待其释放即可 */ };
+      });
+    },
+
+    /** 读取整份 db；库为空返回 null */
+    get() {
+      return this.open().then(conn => new Promise((resolve, reject) => {
+        const tx = conn.transaction(IDB_STORE, "readonly");
+        const req = tx.objectStore(IDB_STORE).get(IDB_KEY);
+        req.onsuccess = () => resolve(req.result || null);
+        req.onerror = () => reject(req.error || new Error("IndexedDB 读取失败"));
+      }));
+    },
+
+    /** 写入整份 db；返回 Promise<boolean> */
+    set(value) {
+      return this.open().then(conn => new Promise((resolve, reject) => {
+        let tx;
+        try {
+          tx = conn.transaction(IDB_STORE, "readwrite");
+        } catch (e) {
+          reject(e);
+          return;
+        }
+        tx.objectStore(IDB_STORE).put(value, IDB_KEY);
+        tx.oncomplete = () => resolve(true);
+        tx.onerror = () => reject(tx.error || new Error("IndexedDB 写入失败"));
+        tx.onabort = () => reject(tx.error || new Error("IndexedDB 写入被中止"));
+      }));
+    },
+  };
+
+  /* ============================================================
+     错误上报
+     注意：store.js 在页面中早于 ui.js 加载，模块顶层绝不能同步调用
+     UI.toast，否则 ReferenceError。这里先 console.error，UI 就绪后
+     （DOMContentLoaded，此时 ui.js 已执行完）再统一弹出提示。
+     ============================================================ */
+  const pendingToasts = [];
+  function reportError(msg, err) {
+    if (err) console.error("[Store] " + msg, err);
+    else console.error("[Store] " + msg);
+    if (window.UI && typeof UI.toast === "function") {
+      try { UI.toast(msg, "error"); return; } catch (e) { /* ignore */ }
+    }
+    if (pendingToasts.indexOf(msg) < 0) pendingToasts.push(msg);
+  }
+  function drainToasts() {
+    while (pendingToasts.length) {
+      const msg = pendingToasts.shift();
+      try { if (window.UI && typeof UI.toast === "function") UI.toast(msg, "error"); } catch (e) { /* ignore */ }
     }
   }
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", drainToasts);
+  } else {
+    drainToasts();
+  }
+
+  /* ============================================================
+     同步引导快照（仅用于启动首帧，非数据源）
+     IndexedDB 只能异步读，而 UserShell.boot / 页面脚本都是同步调用
+     Store（登录守卫更是同步判断 Store.currentUser()），因此必须有
+     一份可同步读取的镜像，否则首屏会拿到种子数据甚至被判为未登录。
+     ============================================================ */
+  function readJSON(key) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) return null;
+      const v = JSON.parse(raw);
+      return v && typeof v === "object" ? v : null;
+    } catch (e) {
+      return null;
+    }
+  }
+  function tryStringify(v) {
+    try { return JSON.stringify(v); } catch (e) { return null; }
+  }
+  /**
+   * 剔除大体积图片后的副本，图片位置换成可回溯的占位标记。
+   * 只针对 users / moments 做浅拷贝改写，不做整份深拷贝，避免大数据量下的卡顿。
+   */
+  function slimClone(src) {
+    try {
+      const out = {};
+      Object.keys(src).forEach(k => { out[k] = src[k]; });
+      out.users = (src.users || []).map(u =>
+        u && u.avatarImg ? Object.assign({}, u, { avatarImg: IMG_MARK + "u:" + u.id }) : u);
+      out.moments = (src.moments || []).map(m => {
+        if (!m || !m.photos || !m.photos.length) return m;
+        return Object.assign({}, m, {
+          photos: m.photos.map((p, i) =>
+            p && p.src ? Object.assign({}, p, { src: IMG_MARK + "m:" + m.id + ":" + i }) : p),
+        });
+      });
+      return out;
+    } catch (e) {
+      return null;
+    }
+  }
+  let cacheOversize = false;   // 上一次已知整份快照超预算，跳过重复 stringify
+  let cacheWarned = false;     // 快照写失败只提示一次，避免刷屏
+  function bootCacheJSON() {
+    if (!cacheOversize) {
+      const full = tryStringify(db);
+      if (full !== null && full.length <= BOOT_BUDGET) return full;
+      cacheOversize = true;
+    }
+    const slim = slimClone(db);
+    return slim === null ? null : tryStringify(slim);
+  }
+  let lastCacheWrite = 0;
+  function writeBootCache() {
+    lastCacheWrite = Date.now();
+    const json = bootCacheJSON();
+    if (json === null) { warnCache(); return false; }
+    try {
+      localStorage.setItem(BOOT_KEY, json);
+      return true;
+    } catch (e) {
+      // 超出 localStorage 配额：改为写入剔图快照再试一次
+      const slim = slimClone(db);
+      const slimJson = slim === null ? null : tryStringify(slim);
+      if (slimJson !== null && slimJson !== json) {
+        try { localStorage.setItem(BOOT_KEY, slimJson); cacheOversize = true; warnCache(); return true; }
+        catch (e2) { /* 仍然失败，放弃快照 */ }
+      }
+      try { localStorage.removeItem(BOOT_KEY); } catch (e2) { /* ignore */ }
+      warnCache();
+      return false;
+    }
+  }
+  function warnCache() {
+    if (cacheWarned) return;
+    cacheWarned = true;
+    reportError("本地缓存写入失败，数据已存入数据库；启动可能稍慢", null);
+  }
+  /** 引导快照来自剔图版本时，数据就绪后把页面上的图片补回去 */
+  function patchDeferredImages() {
+    try {
+      const imgs = document.querySelectorAll('img[src^="' + IMG_MARK + '"]');
+      Array.prototype.forEach.call(imgs, img => {
+        const spec = String(img.getAttribute("src") || "").slice(IMG_MARK.length).split(":");
+        let real = null;
+        if (spec[0] === "u") {
+          const u = (db.users || []).find(x => x.id === spec[1]);
+          real = u && u.avatarImg && String(u.avatarImg).indexOf(IMG_MARK) !== 0 ? u.avatarImg : null;
+        } else if (spec[0] === "m") {
+          const m = (db.moments || []).find(x => x.id === spec[1]);
+          const p = m && m.photos ? m.photos[Number(spec[2])] : null;
+          real = p && p.src && String(p.src).indexOf(IMG_MARK) !== 0 ? p.src : null;
+        }
+        if (real) img.setAttribute("src", real);
+      });
+    } catch (e) { /* ignore */ }
+  }
+
+  /* ============================================================
+     加载：同步引导（快照 > 老 localStorage 数据 > 种子） + 异步接管
+     ============================================================ */
+  let db;
+  let bootSource = "seed";  // cache | legacy | seed
+  let dirty = false;
+
+  (function loadSync() {
+    const cache = readJSON(BOOT_KEY);
+    if (cache && Array.isArray(cache.users)) { db = cache; bootSource = "cache"; return; }
+    // 迁移：老版本 localStorage 里的数据，读进来后由 hydrate() 写入 IndexedDB
+    const legacy = readJSON(LS_KEY);
+    if (legacy && Array.isArray(legacy.users)) { db = legacy; bootSource = "legacy"; return; }
+    db = seed();
+    bootSource = "seed";
+  })();
+
+  /* 旧数据补齐新增字段（老数据 / 导入备份 / 异步接管后都会调用） */
+  function normalizeDb() {
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav"].forEach(k => {
+      if (!db[k]) { db[k] = {}; dirty = true; }
+    });
+    if (!db.wallets) { db.wallets = seedWallets(); dirty = true; }
+    if (!db.debts) { db.debts = seedDebts(); dirty = true; }
+    if (!db.customCats) { db.customCats = {}; dirty = true; }
+    if (ensureSettings()) dirty = true;
+    // 迁移：早期版本为用户预置了「与默认完全相同」的宫格顺序，会遮蔽后台默认顺序，这里清理掉
+    if (db.order) {
+      const DEF_ORDER = ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"];
+      Object.keys(db.order).forEach(k => {
+        const a = db.order[k];
+        if (Array.isArray(a) && a.length === DEF_ORDER.length && a.every((v, i) => v === DEF_ORDER[i])) { delete db.order[k]; dirty = true; }
+      });
+    }
+    return dirty;
+  }
+  normalizeDb();
+
+  /* ============================================================
+     持久化：内存镜像 -> IndexedDB（debounce） + 引导快照（同步/节流）
+     ============================================================ */
+  let flushTimer = null;
+  let lastSessionJson = "";
+  let hydrating = true;   // 异步接管是否尚未完成（完成前禁止落盘）
+  let pendingWrites = false; // 接管完成前是否发生过写操作（有则不丢弃，见 hydrate）
+
+  /** 安排一次异步落盘（debounce 350ms） */
+  function scheduleFlush() {
+    if (flushTimer) clearTimeout(flushTimer);
+    flushTimer = setTimeout(() => {
+      flushTimer = null;
+      flushNow();
+    }, FLUSH_DELAY);
+  }
+
+  /** 立即落盘：同步写引导快照 + 异步写 IndexedDB */
+  function flushNow() {
+    if (flushTimer) { clearTimeout(flushTimer); flushTimer = null; }
+    // 异步接管完成前禁止落盘，否则种子占位数据会把 IndexedDB 里的真实数据覆盖掉
+    if (hydrating) { dirty = true; pendingWrites = true; return Promise.resolve(false); }
+    dirty = false;
+    lastSessionJson = tryStringify(db.session || null) || "";
+    writeBootCache();
+    return IDB.set(db).then(() => true).catch(err => {
+      reportError("数据保存失败，请检查浏览器存储空间或隐私设置", err);
+      return false;
+    });
+  }
+
+  /** 会话变化时立刻写快照（登录/退出后马上跳转页面也保证不丢），否则按节流写入 */
+  function maybeWriteBootCache() {
+    if (hydrating) return;
+    const sessionJson = tryStringify(db.session || null) || "";
+    const now = Date.now();
+    if (sessionJson !== lastSessionJson || now - lastCacheWrite >= CACHE_THROTTLE) {
+      lastSessionJson = sessionJson;
+      writeBootCache();
+    }
+  }
+  /** 接管完成前发生的写操作：记录到 pendingWrites，由 hydrate 决定如何处理 */
+  function notePendingWrite() { if (hydrating) pendingWrites = true; }
+
+  /** 数据变更入口：所有业务方法写完内存后调用它 */
+  function persist() {
+    dirty = true;
+    notePendingWrite();
+    scheduleFlush();
+    maybeWriteBootCache();
+  }
   function save() { persist(); }
+
+  /* 切后台 / 离开页面：立即 flush，避免丢掉最后一次操作 */
+  function flushOnLeave() {
+    try { flushNow(); } catch (e) { /* ignore */ }
+  }
+  window.addEventListener("pagehide", flushOnLeave);
+  window.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") flushOnLeave();
+  });
+
+  /* ============================================================
+     异步接管：用 IndexedDB 的权威数据覆盖内存镜像
+     ============================================================ */
+  /** 写入 IndexedDB，成功后清除老版本 localStorage 数据（严禁先删后写） */
+  function writeToIdb() {
+    return IDB.set(db).then(() => {
+      try { localStorage.removeItem(LS_KEY); } catch (e) { /* ignore */ }
+      return true;
+    });
+  }
+
+  /**
+   * 极少数场景（引导快照缺失且 IndexedDB 有数据）下，首帧用的是种子占位数据。
+   * 数据就绪后写一份快照并重载一次，让页面展示真实数据；
+   * 快照写不进去就不重载，避免死循环；同一标签页最多重载一次。
+   */
+  function reloadOnceAfterColdBoot() {
+    try {
+      if (sessionStorage.getItem("yiwo_cold_reload") === "1") return;
+    } catch (e) { return; }
+    if (!writeBootCache()) return;
+    try { sessionStorage.setItem("yiwo_cold_reload", "1"); } catch (e) { /* ignore */ }
+    try { location.reload(); } catch (e) { /* ignore */ }
+  }
+
+  function hydrate() {
+    return IDB.get().then(saved => {
+      if (saved && Array.isArray(saved.users)) {
+        // 库里已有数据：默认以 IndexedDB 为准覆盖内存。
+        // 例外：本页首帧就是真实数据（快照/老数据）且用户已经在接管前改过，
+        // 此时内存里的才是最新意图，保留内存并回写，避免丢掉这次操作。
+        const usedPlaceholder = bootSource === "seed";
+        if (!(pendingWrites && !usedPlaceholder)) db = saved;
+        hydrating = false;
+        pendingWrites = false;
+        normalizeDb();
+        if (dirty) flushNow(); else writeBootCache();
+        patchDeferredImages();
+        window.dispatchEvent(new CustomEvent("yiwo:store-ready", { detail: { source: "idb" } }));
+        if (usedPlaceholder) reloadOnceAfterColdBoot();
+        return;
+      }
+      // 库为空：迁移老数据或播种新数据（db 已是最终值，可以安全落盘）
+      hydrating = false;
+      pendingWrites = false;
+      if (bootSource === "legacy") {
+        return writeToIdb().then(() => {
+          writeBootCache();
+          patchDeferredImages();
+          window.dispatchEvent(new CustomEvent("yiwo:store-ready", { detail: { source: "migrated" } }));
+        }).catch(err => {
+          // 写库失败：保留 localStorage 老数据不删，下次启动重试迁移
+          reportError("数据迁移失败，已保留原有本地数据，请刷新页面重试", err);
+          writeBootCache();
+        });
+      }
+      writeBootCache();
+      return writeToIdb().catch(err => {
+        reportError("本地数据库写入失败，数据可能不会被保存", err);
+      });
+    }).catch(err => {
+      // IndexedDB 不可用（隐私模式 / 浏览器不支持）：降级为内存 + localStorage 快照
+      hydrating = false;
+      pendingWrites = false;
+      reportError("本地数据库不可用，已降级为浏览器本地缓存存储", err);
+      writeBootCache();
+    });
+  }
 
   /* ---------- 会话与用户 ---------- */
   function currentUser() {
@@ -408,6 +761,7 @@ window.Store = (() => {
     if (u.password !== password) return { ok: false, msg: "密码不正确" };
     db.session = { type: "user", uid: u.id };
     persist();
+    flushNow();
     return { ok: true, user: u };
   }
   function register({ account, password, nickname }) {
@@ -424,11 +778,13 @@ window.Store = (() => {
     db.users.push(user);
     db.session = { type: "user", uid: id };
     persist();
+    flushNow();
     return { ok: true, user };
   }
   function logout() {
     db.session = null;
     persist();
+    flushNow();
   }
   function updateProfile(uid, patch) {
     const u = db.users.find(x => x.id === uid);
@@ -1080,6 +1436,7 @@ window.Store = (() => {
   }
 
   /* ---------- 数据备份（导出 / 导入） ---------- */
+  // 始终从内存镜像导出，保证导出的是当前最新状态
   function exportBackup() {
     return JSON.stringify({ __yiwo: true, version: 2, exportedAt: Date.now(), data: db });
   }
@@ -1092,6 +1449,7 @@ window.Store = (() => {
     db = next;
     ensureSettings();
     persist();
+    flushNow();
     return { ok: true };
   }
 
@@ -1217,6 +1575,7 @@ window.Store = (() => {
     if (a.password !== password) return { ok: false, msg: "密码不正确" };
     db.session = { type: "admin", aid: a.id };
     persist();
+    flushNow();
     return { ok: true, admin: a };
   }
   function listAdmins() { return [...db.admins]; }
@@ -1273,6 +1632,9 @@ window.Store = (() => {
       recentUsers: users.slice(0, 6),
     };
   }
+
+  /* ---------- 启动异步接管（IndexedDB -> 内存镜像） ---------- */
+  hydrate();
 
   return {
     CATS, SPORTS, PERMS, REGIONS, WALLET_TYPES, WALLET_GROUPS, save,
