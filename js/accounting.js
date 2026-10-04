@@ -1,6 +1,6 @@
 /* 记账页：按日查看与分类记一笔（近 7 天可切换） */
 
-UserShell.boot({ tab: null, title: "记账", back: "assets.html", hideTab: true });
+UserShell.boot({ tab: null, title: Store.getTitle("page.accounting"), back: "assets.html", hideTab: true });
 
 (() => {
   const u = Store.currentUser();
