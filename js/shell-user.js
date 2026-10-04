@@ -5,22 +5,39 @@
 window.UserShell = (() => {
   let bootedShell = null;
 
+  // 兜底默认（配置异常或为空时使用）
   const TAB_DEFS = [
-    { key: "home", icon: "home", href: "index.html" },
-    { key: "friends", icon: "users", href: "friends.html" },
-    { key: "assets", icon: "wallet", href: "assets.html" },
-    { key: "my", icon: "user", href: "my.html" },
+    { key: "home", label: "首页", icon: "home", href: "index.html" },
+    { key: "friends", label: "好友", icon: "users", href: "friends.html" },
+    { key: "assets", label: "资产", icon: "wallet", href: "assets.html" },
+    { key: "my", label: "我的", icon: "user", href: "my.html" },
   ];
 
-  // 桌面端侧边栏补充的功能模块（移动端由首页/我的宫格承载）
+  // 桌面端侧边栏补充的功能模块兜底（移动端由首页/我的宫格承载）
   const MODULES = [
-    { name: "记账", icon: "wallet", href: "accounting.html" },
-    { name: "健身打卡", icon: "flame", href: "fitness.html" },
-    { name: "任务进度", icon: "target", href: "tasks.html" },
-    { name: "备忘录", icon: "memo", href: "memo.html" },
-    { name: "阅读书架", icon: "book", href: "bookshelf.html" },
-    { name: "我的动态", icon: "sparkles", href: "moments.html" },
+    { key: "accounting", name: "记账", icon: "wallet", href: "accounting.html" },
+    { key: "fitness", name: "健身打卡", icon: "flame", href: "fitness.html" },
+    { key: "tasks", name: "任务进度", icon: "target", href: "tasks.html" },
+    { key: "memo", name: "备忘录", icon: "memo", href: "memo.html" },
+    { key: "bookshelf", name: "阅读书架", icon: "book", href: "bookshelf.html" },
+    { key: "moments", name: "我的动态", icon: "sparkles", href: "moments.html" },
   ];
+
+  // 底部 Tab：读后台配置（顺序 / 文字 / 图标 / 跳转），为空则回退默认
+  function tabDefs() {
+    let list = [];
+    try { list = Store.listFeatures("tab") || []; } catch (e) { list = []; }
+    if (!list.length) return TAB_DEFS.map(t => ({ ...t }));
+    return list.map(f => ({ key: f.key, label: f.name, icon: f.ico, href: f.href }));
+  }
+
+  // 侧边栏「功能」：读后台配置，为空则回退默认
+  function sideModules() {
+    let list = [];
+    try { list = Store.listFeatures("sidenav") || []; } catch (e) { list = []; }
+    if (!list.length) return MODULES.map(m => ({ ...m }));
+    return list.map(f => ({ key: f.key, name: f.name, icon: f.ico, href: f.href }));
+  }
 
   function user() { return Store.currentUser(); }
 
@@ -41,7 +58,8 @@ window.UserShell = (() => {
     } catch (e) { /* ignore */ }
 
     const app = document.getElementById("app");
-    const tabDefs = TAB_DEFS.map(t => ({ ...t, label: tabLabel(t.key) }));
+    const tabs = tabDefs();
+    const modules = sideModules();
 
     const headBack = back !== null
       ? `<button class="head-back" data-back aria-label="返回">${UI.icon("chevron-left", 20)}</button>`
@@ -66,7 +84,7 @@ window.UserShell = (() => {
     if (!hideTab) {
       tabbar = document.createElement("nav");
       tabbar.className = "tabbar";
-      tabbar.innerHTML = tabDefs.map(t => `
+      tabbar.innerHTML = tabs.map(t => `
         <a class="tab ${tab === t.key ? "on" : ""}" href="${t.href}">
           <span class="tab-icon">${UI.icon(t.icon, 22)}</span>${UI.esc(t.label)}
           ${t.key === "friends" && pending > 0 ? `<span class="tab-badge">${pending}</span>` : ""}
@@ -91,7 +109,7 @@ window.UserShell = (() => {
           </div>
         </div>
         <nav class="sn-items">
-          ${tabDefs.map(t => `
+          ${tabs.map(t => `
             <a class="sn-item ${tab === t.key ? "on" : ""}" href="${t.href}">
               <span class="sn-ico">${UI.icon(t.icon, 20)}</span>${UI.esc(t.label)}
               ${t.key === "friends" && pending > 0 ? `<span class="sn-badge">${pending}</span>` : ""}
@@ -99,7 +117,7 @@ window.UserShell = (() => {
         </nav>
         <div class="sn-group">功能</div>
         <nav class="sn-items sn-modules">
-          ${MODULES.map(m => `
+          ${modules.map(m => `
             <a class="sn-item" href="${m.href}">
               <span class="sn-ico">${UI.icon(m.icon, 20)}</span>${UI.esc(m.name)}
             </a>`).join("")}
@@ -125,11 +143,10 @@ window.UserShell = (() => {
     return bootedShell;
   }
 
+
   function tabLabel(key) {
-    const s = Store.getSettings();
-    const i = TAB_DEFS.findIndex(t => t.key === key);
-    const labels = s.tabLabels || ["首页", "好友", "资产", "我的"];
-    return labels[i] || key;
+    const t = tabDefs().find(x => x.key === key);
+    return t ? t.label : key;
   }
 
   /** 隐藏/显示底部 Tab（用于聊天页聚焦输入等场景） */
