@@ -1,6 +1,6 @@
 /* 主题页逻辑：11 套主题选择（本地优先级最高），恢复默认则跟随后台默认主题 */
 (() => {
-  UserShell.boot({ tab: null, title: "主题", back: "my.html", hideTab: true });
+  UserShell.boot({ tab: null, title: Store.getTitle("page.theme"), back: "my.html", hideTab: true });
 
   const u = Store.currentUser();
   if (!u) return;
