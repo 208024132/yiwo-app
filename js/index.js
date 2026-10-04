@@ -8,18 +8,22 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
   const u = Store.currentUser();
   if (!u) return;
   const settings = Store.getSettings();
+  const T = Store.getTitles();
   const body = document.getElementById("home-body");
   const M = settings.homeModules || {};
 
-  // 快捷入口（列数由后台控制）
-  const QUICKS = [
-    { name: "记账", e: "💰", g: "linear-gradient(135deg,#f2994a,#ef5e47)", href: "accounting.html" },
-    { name: "健身打卡", e: "🔥", g: "linear-gradient(135deg,#f76f8e,#b23a6e)", href: "fitness.html" },
-    { name: "任务进度", e: "🎯", g: "linear-gradient(135deg,#56ccf2,#2f80ed)", href: "tasks.html" },
-    { name: "备忘录", e: "📝", g: "linear-gradient(135deg,#9b6cf7,#5f3dcf)", href: "memo.html" },
-    { name: "阅读书架", e: "📚", g: "linear-gradient(135deg,#48c6c0,#1f8a8a)", href: "bookshelf.html" },
-    { name: "我的动态", e: "✨", g: "linear-gradient(135deg,#f2c94c,#f2994a)", href: "moments.html" },
+  // 快捷入口（内容/顺序/显隐由后台配置，兜底内置默认）
+  const QUICK_FALLBACK = [
+    { key: "accounting", name: "记账", e: "💰", g: "linear-gradient(135deg,#f2994a,#ef5e47)", href: "accounting.html" },
+    { key: "fitness", name: "健身打卡", e: "🔥", g: "linear-gradient(135deg,#f76f8e,#b23a6e)", href: "fitness.html" },
+    { key: "tasks", name: "任务进度", e: "🎯", g: "linear-gradient(135deg,#56ccf2,#2f80ed)", href: "tasks.html" },
+    { key: "memo", name: "备忘录", e: "📝", g: "linear-gradient(135deg,#9b6cf7,#5f3dcf)", href: "memo.html" },
+    { key: "bookshelf", name: "阅读书架", e: "📚", g: "linear-gradient(135deg,#48c6c0,#1f8a8a)", href: "bookshelf.html" },
+    { key: "moments", name: "我的动态", e: "✨", g: "linear-gradient(135deg,#f2c94c,#f2994a)", href: "moments.html" },
   ];
+  let QUICKS = [];
+  try { QUICKS = Store.listFeatures("home"); } catch (e) { QUICKS = []; }
+  if (!QUICKS.length) QUICKS = QUICK_FALLBACK;
 
   const banners = (settings.banners || []).map(b => `
     <div class="banner-bar ${b.tone || "grad"} fade-in">${UI.icon("sparkles", 16)}<span>${UI.esc(b.text)}</span></div>`).join("");
@@ -60,7 +64,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
   }
 
   html += `
-    <section class="section-title"><h2>快捷功能</h2></section>
+    <section class="section-title"><h2>${UI.esc(T["home.quick"])}</h2></section>
     <section class="quick-grid ${quickCols} fade-in">
       ${QUICKS.map(q => `
         <a class="quick-item" href="${q.href}">
@@ -73,7 +77,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
     const feed = Store.listMoments({ uid: u.id, scope: "friends" }).slice(0, 3);
     html += `
     <section class="section-title">
-      <h2>好友动态</h2>
+      <h2>${UI.esc(T["home.moments"])}</h2>
       <a href="friends.html" class="txt-sm txt-3 flex items-center gap-6">更多 ${UI.icon("chevron-right", 14)}</a>
     </section>
     <section class="card fade-in">
@@ -98,7 +102,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
     const tasks = Store.listTasks(u.id).filter(t => t.status !== "done").slice(0, 3);
     html += `
     <section class="section-title">
-      <h2>今日任务</h2>
+      <h2>${UI.esc(T["home.tasks"])}</h2>
       <a href="tasks.html" class="txt-sm txt-3 flex items-center gap-6">全部 ${UI.icon("chevron-right", 14)}</a>
     </section>
     <section class="card fade-in">
