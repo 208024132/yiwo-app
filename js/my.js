@@ -1,13 +1,14 @@
 /* 我的页：用户卡 + 功能宫格（长按拖动排序） + 设置列表 */
 
-UserShell.boot({ tab: "my", title: "我的" });
+UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
 
 (() => {
   const u = Store.currentUser();
   if (!u) return;
   const body = document.getElementById("my-body");
 
-  const FUNCS = [
+  // 兜底默认（后台配置异常/为空时使用）
+  const FUNC_FALLBACK = [
     { key: "moments", name: "我的动态", e: "✨", g: "linear-gradient(135deg,#f2c94c,#f2994a)", href: "moments.html" },
     { key: "bookshelf", name: "阅读书架", e: "📚", g: "linear-gradient(135deg,#48c6c0,#1f8a8a)", href: "bookshelf.html" },
     { key: "memo", name: "备忘录", e: "📝", g: "linear-gradient(135deg,#9b6cf7,#5f3dcf)", href: "memo.html" },
@@ -15,10 +16,43 @@ UserShell.boot({ tab: "my", title: "我的" });
     { key: "tasks", name: "任务进度", e: "🎯", g: "linear-gradient(135deg,#56ccf2,#2f80ed)", href: "tasks.html" },
     { key: "profile", name: "个人信息", e: "👤", g: "linear-gradient(135deg,#f2994a,#ef5e47)", href: "profile.html" },
   ];
+  const LIST_FALLBACK = [
+    { key: "theme", name: "主题皮肤", ico: "palette", href: "theme.html" },
+    { key: "backup", name: "数据备份", ico: "shield", href: "" },
+    { key: "about", name: "关于以我", ico: "info", href: "" },
+  ];
 
+  // 宫格：后台顺序为默认；用户拖动过则以用户顺序为准（隐藏项剔除、后台新增项追加）
   function orderedFuncs() {
-    const order = Store.getOrder(u.id);
-    return order.map(k => FUNCS.find(f => f.key === k)).filter(Boolean);
+    let backend = [];
+    try { backend = Store.listFeatures("my"); } catch (e) { backend = []; }
+    if (!backend.length) backend = FUNC_FALLBACK;
+    const saved = Store.getOrderRaw(u.id);
+    if (!saved) return backend;
+    const map = {};
+    backend.forEach(f => { map[f.key] = f; });
+    const out = saved.map(k => map[k]).filter(Boolean);
+    backend.forEach(f => { if (saved.indexOf(f.key) < 0) out.push(f); });
+    return out;
+  }
+
+  // 列表：内容/顺序/显隐由后台配置，兜底内置默认
+  function listItems() {
+    let items = [];
+    try { items = Store.listFeatures("mylist"); } catch (e) { items = []; }
+    if (!items.length) items = LIST_FALLBACK;
+    return items.map(f => {
+      const sub = f.key === "theme" ? `<span class="li-sub">${UI.esc(curTheme.name)}</span>`
+        : f.key === "backup" ? `<span class="li-sub">导出 / 导入本地数据</span>`
+        : "";
+      const href = f.href ? ` href="${f.href}"` : "";
+      return `
+      <a class="list-item tap" data-fkey="${f.key}"${href}>
+        <span class="li-ico">${UI.icon(f.ico, 20)}</span>
+        <span class="li-main"><span class="li-title">${UI.esc(f.name)}</span>${sub}</span>
+        <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
+      </a>`;
+    }).join("");
   }
 
   const curTheme = Theme.byId(Theme.current());
@@ -47,27 +81,7 @@ UserShell.boot({ tab: "my", title: "我的" });
     </section>
 
     <section class="list mt-16 fade-in">
-      <a class="list-item tap" href="theme.html">
-        <span class="li-ico">${UI.icon("palette", 20)}</span>
-        <span class="li-main">
-          <span class="li-title">主题皮肤</span>
-          <span class="li-sub">${UI.esc(curTheme.name)}</span>
-        </span>
-        <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
-      </a>
-      <a class="list-item tap" id="backup-entry">
-        <span class="li-ico">${UI.icon("shield", 20)}</span>
-        <span class="li-main">
-          <span class="li-title">数据备份</span>
-          <span class="li-sub">导出 / 导入本地数据</span>
-        </span>
-        <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
-      </a>
-      <a class="list-item tap" id="about-entry">
-        <span class="li-ico">${UI.icon("info", 20)}</span>
-        <span class="li-main"><span class="li-title">关于以我</span></span>
-        <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
-      </a>
+      ${listItems()}
       <a class="list-item tap" id="logout-entry">
         <span class="li-ico li-ico-danger">${UI.icon("logout", 20)}</span>
         <span class="li-main">
@@ -197,10 +211,10 @@ function bindSort() {
 
 /* ---------- 列表交互 ---------- */
 function bindList() {
-  const backup = document.getElementById("backup-entry");
+  const backup = document.querySelector('[data-fkey="backup"]');
   if (backup) backup.onclick = openBackup;
 
-  const about = document.getElementById("about-entry");
+  const about = document.querySelector('[data-fkey="about"]');
   if (about) {
     about.onclick = () => {
       const s = UI.sheet(`
