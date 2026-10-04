@@ -1,5 +1,5 @@
 /* 健身打卡：概况卡 + 今日打卡 + 近14天 + 打卡日历 */
-UserShell.boot({ hideTab: true, back: "my.html", title: "健身打卡" });
+UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.fitness") });
 
 (() => {
   const u = Store.currentUser();
@@ -30,7 +30,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "健身打卡" });
       </div>`;
 
     const sports = `
-      <section class="section-title"><h2>今日打卡</h2></section>
+      <section class="section-title"><h2>${UI.esc(Store.getTitle("fitness.today"))}</h2></section>
       <div class="sport-grid grid-3">
         ${SPORTS.map(s => `
           <div class="sport-cell ${f.today.includes(s.key) ? "on" : ""}" data-sport="${s.key}">
@@ -41,11 +41,11 @@ UserShell.boot({ hideTab: true, back: "my.html", title: "健身打卡" });
       </div>`;
 
     const chart = `
-      <section class="section-title"><h2>近 14 天</h2></section>
+      <section class="section-title"><h2>${UI.esc(Store.getTitle("fitness.days"))}</h2></section>
       <div class="card fit-chart"><canvas data-h="150" data-canvas></canvas></div>`;
 
     const cal = `
-      <section class="section-title"><h2>打卡日历</h2></section>
+      <section class="section-title"><h2>${UI.esc(Store.getTitle("fitness.calendar"))}</h2></section>
       <div class="card">
         <div class="cal-grid">
           ${days.map((d, i) => `
