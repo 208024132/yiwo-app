@@ -78,6 +78,96 @@ window.Store = (() => {
     };
   }
 
+  /* ---------- 前端功能配置（后台「页面布局管理」可改） ----------
+     featureCatalog   ：每个功能的元数据（文字 / emoji / SVG 图标名 / 渐变色 / 跳转）
+     featureSurfaces  ：各展示位的顺序与显隐（数组顺序即展示顺序）
+     titles           ：页面小标题与顶栏标题
+     注意：图标分两套 —— e 为宫格用 emoji，ico 为 Tab/侧边栏用 UI.PATH 图标名。 */
+  const FEATURE_CATALOG = {
+    accounting: { name: "记账", e: "💰", ico: "wallet", g: "linear-gradient(135deg,#f2994a,#ef5e47)", href: "accounting.html" },
+    fitness: { name: "健身打卡", e: "🔥", ico: "flame", g: "linear-gradient(135deg,#f76f8e,#b23a6e)", href: "fitness.html" },
+    tasks: { name: "任务进度", e: "🎯", ico: "target", g: "linear-gradient(135deg,#56ccf2,#2f80ed)", href: "tasks.html" },
+    memo: { name: "备忘录", e: "📝", ico: "memo", g: "linear-gradient(135deg,#9b6cf7,#5f3dcf)", href: "memo.html" },
+    bookshelf: { name: "阅读书架", e: "📚", ico: "book", g: "linear-gradient(135deg,#48c6c0,#1f8a8a)", href: "bookshelf.html" },
+    moments: { name: "我的动态", e: "✨", ico: "sparkles", g: "linear-gradient(135deg,#f2c94c,#f2994a)", href: "moments.html" },
+    profile: { name: "个人信息", e: "👤", ico: "user", g: "linear-gradient(135deg,#f2994a,#ef5e47)", href: "profile.html" },
+    theme: { name: "主题皮肤", e: "🎨", ico: "palette", g: "", href: "theme.html" },
+    backup: { name: "数据备份", e: "🛡️", ico: "shield", g: "", href: "" },
+    about: { name: "关于以我", e: "ℹ️", ico: "info", g: "", href: "" },
+    home: { name: "首页", e: "", ico: "home", g: "", href: "index.html" },
+    friends: { name: "好友", e: "", ico: "users", g: "", href: "friends.html" },
+    assets: { name: "资产", e: "", ico: "wallet", g: "", href: "assets.html" },
+    my: { name: "我的", e: "", ico: "user", g: "", href: "my.html" },
+  };
+  const FEATURE_SURFACES = {
+    tab: ["home", "friends", "assets", "my"],
+    home: ["accounting", "fitness", "tasks", "memo", "bookshelf", "moments"],
+    my: ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"],
+    mylist: ["theme", "backup", "about"],
+    sidenav: ["accounting", "fitness", "tasks", "memo", "bookshelf", "moments"],
+  };
+  const SURFACE_NAMES = {
+    tab: "底部 Tab",
+    home: "首页宫格",
+    my: "我的宫格",
+    mylist: "我的列表",
+    sidenav: "电脑端侧边栏",
+  };
+  const TITLE_DEFS = {
+    "home.quick": "快捷功能",
+    "home.moments": "好友动态",
+    "home.tasks": "今日任务",
+    "assets.trend": "近 7 日支出",
+    "assets.cat": "支出分类",
+    "assets.recent": "最近记录",
+    "fitness.today": "今日打卡",
+    "fitness.days": "近 14 天",
+    "fitness.calendar": "打卡日历",
+    "friend.moments": "TA 的动态",
+    "addFriend.result": "搜索结果",
+    "addFriend.recommend": "推荐用户",
+    "page.accounting": "记账",
+    "page.fitness": "健身打卡",
+    "page.tasks": "任务进度",
+    "page.memo": "备忘录",
+    "page.bookshelf": "阅读书架",
+    "page.moments": "我的动态",
+    "page.profile": "个人信息",
+    "page.friends": "好友",
+    "page.assets": "资产",
+    "page.my": "我的",
+    "page.theme": "主题",
+    "page.addFriend": "添加好友",
+  };
+  const FEATURE_FIELDS = ["name", "e", "ico", "g", "href"];
+  function defaultCatalog() { return JSON.parse(JSON.stringify(FEATURE_CATALOG)); }
+  function defaultSurfaces() {
+    const out = {};
+    Object.keys(FEATURE_SURFACES).forEach(k => { out[k] = FEATURE_SURFACES[k].map(key => ({ key, visible: true })); });
+    return out;
+  }
+  function defaultTitles() { return Object.assign({}, TITLE_DEFS); }
+  /* 补齐 settings 中功能配置相关的缺失键（老数据 / 导入备份后调用），返回是否有变更 */
+  function ensureSettings() {
+    if (!db.settings || typeof db.settings !== "object") db.settings = {};
+    const s = db.settings;
+    let changed = false;
+    if (!s.featureCatalog || typeof s.featureCatalog !== "object") { s.featureCatalog = defaultCatalog(); changed = true; }
+    else {
+      Object.keys(FEATURE_CATALOG).forEach(key => {
+        if (!s.featureCatalog[key]) { s.featureCatalog[key] = Object.assign({}, FEATURE_CATALOG[key]); changed = true; }
+      });
+    }
+    if (!s.featureSurfaces || typeof s.featureSurfaces !== "object") { s.featureSurfaces = defaultSurfaces(); changed = true; }
+    else {
+      Object.keys(FEATURE_SURFACES).forEach(surface => {
+        if (!Array.isArray(s.featureSurfaces[surface])) { s.featureSurfaces[surface] = FEATURE_SURFACES[surface].map(key => ({ key, visible: true })); changed = true; }
+      });
+    }
+    if (!s.titles || typeof s.titles !== "object") { s.titles = defaultTitles(); changed = true; }
+    return changed;
+  }
+
   /* ---------- 种子数据 ---------- */
   function seed() {
     const users = [
@@ -240,7 +330,7 @@ window.Store = (() => {
       wallets: seedWallets(),
       debts: seedDebts(),
       customCats: {},
-      order: { u10001: ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"] },
+      order: {},
       groups: {},
       friendGroup: {},
       friendNav: {},
@@ -256,6 +346,9 @@ window.Store = (() => {
           { id: "banner1", text: "欢迎使用以我 App · 记录每一天的自己", tone: "grad" },
         ],
         defaultTheme: "red",
+        featureCatalog: defaultCatalog(),
+        featureSurfaces: defaultSurfaces(),
+        titles: defaultTitles(),
       },
       session: null,
       seq: 1,
@@ -276,6 +369,15 @@ window.Store = (() => {
   if (!db.wallets) { db.wallets = seedWallets(); dirty = true; }
   if (!db.debts) { db.debts = seedDebts(); dirty = true; }
   if (!db.customCats) { db.customCats = {}; dirty = true; }
+  if (ensureSettings()) dirty = true;
+  // 迁移：早期版本为用户预置了「与默认完全相同」的宫格顺序，会遮蔽后台默认顺序，这里清理掉
+  if (db.order) {
+    const DEF_ORDER = ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"];
+    Object.keys(db.order).forEach(k => {
+      const a = db.order[k];
+      if (Array.isArray(a) && a.length === DEF_ORDER.length && a.every((v, i) => v === DEF_ORDER[i])) { delete db.order[k]; dirty = true; }
+    });
+  }
   if (dirty) persist();
 
   function persist() {
@@ -321,7 +423,6 @@ window.Store = (() => {
     };
     db.users.push(user);
     db.session = { type: "user", uid: id };
-    db.order[id] = ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"];
     persist();
     return { ok: true, user };
   }
@@ -867,12 +968,115 @@ window.Store = (() => {
   /* ---------- 页面设置（后台布局管理） ---------- */
   function getSettings() { return JSON.parse(JSON.stringify(db.settings)); }
   function saveSettings(patch) {
-    Object.assign(db.settings, patch);
+    Object.keys(patch || {}).forEach(k => {
+      const v = patch[k];
+      // 对象（非数组）做一层深合并，数组与基础类型直接替换
+      if (v && typeof v === "object" && !Array.isArray(v) &&
+          db.settings[k] && typeof db.settings[k] === "object" && !Array.isArray(db.settings[k])) {
+        Object.assign(db.settings[k], v);
+      } else {
+        db.settings[k] = v;
+      }
+    });
     persist();
     // 若用户没有本地主题选择，立即应用新的默认主题
-    if (!localStorage.getItem("yiwo_theme") && patch.defaultTheme) {
+    if (!localStorage.getItem("yiwo_theme") && patch && patch.defaultTheme) {
       window.Theme && Theme.apply(patch.defaultTheme);
     }
+  }
+
+  /* ---------- 前端功能配置 ---------- */
+  function getCatalog() { return JSON.parse(JSON.stringify(db.settings.featureCatalog || {})); }
+  function getCatalogItem(key) {
+    const c = (db.settings.featureCatalog || {})[key];
+    return c ? JSON.parse(JSON.stringify(c)) : null;
+  }
+  // 后台用：含隐藏项，带 visible 标记
+  function listSurface(surface) {
+    const arr = (db.settings.featureSurfaces && db.settings.featureSurfaces[surface]) || [];
+    const cat = db.settings.featureCatalog || {};
+    return arr.map(item => {
+      const key = typeof item === "string" ? item : item.key;
+      const meta = cat[key] || FEATURE_CATALOG[key] || { name: key, e: "", ico: "info", g: "", href: "" };
+      return { key, name: meta.name, e: meta.e, ico: meta.ico, g: meta.g, href: meta.href, visible: (typeof item === "object" && item.visible === false) ? false : true };
+    });
+  }
+  // 前端用：按序、过滤隐藏项
+  function listFeatures(surface) {
+    return listSurface(surface).filter(f => f.visible !== false);
+  }
+  // 用传入的有序键数组重写该 surface（保留每个 key 原有的 visible）
+  function setSurface(surface, keys) {
+    if (!SURFACE_NAMES[surface]) return { ok: false, msg: "未知的展示位" };
+    if (!Array.isArray(keys) || !keys.length) return { ok: false, msg: "至少保留一个功能" };
+    const prev = {};
+    ((db.settings.featureSurfaces && db.settings.featureSurfaces[surface]) || []).forEach(it => {
+      const k = typeof it === "string" ? it : it.key;
+      prev[k] = (typeof it === "object" && it.visible === false) ? false : true;
+    });
+    const next = keys.map(k => ({ key: k, visible: prev[k] !== false }));
+    if (surface === "tab" && next.filter(x => x.visible).length < 2) return { ok: false, msg: "底部 Tab 至少保留 2 个功能" };
+    if (!db.settings.featureSurfaces) db.settings.featureSurfaces = {};
+    db.settings.featureSurfaces[surface] = next;
+    persist();
+    return { ok: true };
+  }
+  // 单个功能显隐
+  function setFeatureVisible(surface, key, visible) {
+    const arr = (db.settings.featureSurfaces && db.settings.featureSurfaces[surface]) || [];
+    const it = arr.find(x => (typeof x === "string" ? x : x.key) === key);
+    if (!it) return { ok: false, msg: "功能不存在" };
+    const target = typeof it === "string" ? { key: it, visible: true } : it;
+    const idx = arr.indexOf(it);
+    const next = { key: target.key, visible: !!visible };
+    if (surface === "tab" && !visible && arr.filter(x => (typeof x === "string" ? x : x.key) !== key && !(typeof x === "object" && x.visible === false)).length < 2) {
+      return { ok: false, msg: "底部 Tab 至少保留 2 个功能" };
+    }
+    arr[idx] = next;
+    persist();
+    return { ok: true };
+  }
+  // 修改功能元数据（文字 / emoji / SVG 图标名 / 配色 / 跳转）
+  function updateCatalogItem(key, patch) {
+    const cat = db.settings.featureCatalog || {};
+    if (!cat[key]) return { ok: false, msg: "功能不存在" };
+    if (patch && patch.name !== undefined) {
+      const name = String(patch.name).trim();
+      if (!name) return { ok: false, msg: "功能名称不能为空" };
+      if (name.length > 8) return { ok: false, msg: "功能名称不超过 8 个字" };
+      patch.name = name;
+    }
+    FEATURE_FIELDS.forEach(f => { if (patch && patch[f] !== undefined) cat[key][f] = patch[f]; });
+    persist();
+    return { ok: true, item: JSON.parse(JSON.stringify(cat[key])) };
+  }
+  function resetFeatures() {
+    db.settings.featureCatalog = defaultCatalog();
+    db.settings.featureSurfaces = defaultSurfaces();
+    db.settings.titles = defaultTitles();
+    persist();
+  }
+  // 页面小标题 / 顶栏标题
+  function getTitles() {
+    const t = db.settings.titles || {};
+    const out = Object.assign({}, TITLE_DEFS);
+    Object.keys(t).forEach(k => { if (t[k] !== undefined && t[k] !== null && t[k] !== "") out[k] = t[k]; });
+    return out;
+  }
+  function getTitle(key, fallback) {
+    const t = db.settings.titles || {};
+    if (t[key] !== undefined && t[key] !== null && t[key] !== "") return t[key];
+    if (TITLE_DEFS[key] !== undefined) return TITLE_DEFS[key];
+    return fallback !== undefined ? fallback : key;
+  }
+  function saveTitles(patch) {
+    if (!db.settings.titles) db.settings.titles = {};
+    Object.keys(patch || {}).forEach(k => {
+      const v = patch[k];
+      if (v === undefined || v === null || String(v).trim() === "") delete db.settings.titles[k];
+      else db.settings.titles[k] = String(v).trim();
+    });
+    persist();
   }
 
   /* ---------- 数据备份（导出 / 导入） ---------- */
@@ -886,12 +1090,14 @@ window.Store = (() => {
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
     ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats"].forEach(k => { if (!next[k]) next[k] = {}; });
     db = next;
+    ensureSettings();
     persist();
     return { ok: true };
   }
 
   /* ---------- 我的页面宫格排序 ---------- */
   function getOrder(uid) { return db.order[uid] || ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"]; }
+  function getOrderRaw(uid) { return db.order[uid] ? db.order[uid].slice() : null; }
   function saveOrder(uid, arr) { db.order[uid] = arr; persist(); }
 
   /* ---------- 好友分组 ---------- */
@@ -1099,8 +1305,12 @@ window.Store = (() => {
     listTasks, saveTask, delTask,
     // 设置
     getSettings, saveSettings,
+    // 前端功能配置
+    FEATURE_CATALOG, FEATURE_SURFACES, SURFACE_NAMES, TITLE_DEFS,
+    getCatalog, getCatalogItem, listFeatures, listSurface, setSurface, setFeatureVisible,
+    updateCatalogItem, getTitles, getTitle, saveTitles, resetFeatures,
     // 排序
-    getOrder, saveOrder,
+    getOrder, getOrderRaw, saveOrder,
     // 数据备份
     exportBackup, importBackup,
     // 管理员
