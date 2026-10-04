@@ -1,5 +1,5 @@
 /* 个人信息：头像 + 资料编辑 */
-UserShell.boot({ hideTab: true, back: "my.html", title: "个人信息" });
+UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.profile") });
 
 (() => {
   const u = Store.currentUser();
