@@ -28,6 +28,62 @@
 }
 .theme-card.on .theme-check { opacity: 1; }
 
+/* 功能管理 */
+.feat-list { display: flex; flex-direction: column; gap: 8px; }
+.feat-row {
+  display: flex; align-items: center; gap: 8px;
+  background: var(--card-2); border-radius: 12px; padding: 8px 10px;
+  border: 1px solid transparent; transition: border-color .15s ease, opacity .15s ease;
+}
+.feat-row.dragging { opacity: .5; }
+.feat-row.over { border-color: var(--primary); }
+.feat-drag { cursor: grab; color: var(--text-3); display: flex; flex-shrink: 0; }
+.feat-ico {
+  width: 34px; height: 34px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 17px; line-height: 1; color: #fff;
+}
+.feat-ico.svg { background: var(--primary-soft); color: var(--primary-strong); }
+.feat-name { flex: 1; min-width: 0; }
+.feat-actions { display: flex; gap: 10px; }
+.feat-actions .btn { flex: 1; }
+.picker-box {
+  margin-top: 10px; background: var(--card-2); border: 1px solid var(--line);
+  border-radius: 12px; padding: 10px;
+}
+.picker-head {
+  display: flex; align-items: center; gap: 4px;
+  font-size: var(--fs-sm); font-weight: 600; margin-bottom: 8px;
+}
+.picker-head .icon-btn { margin-left: auto; }
+.ico-pick-grid {
+  display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px;
+  max-height: 200px; overflow-y: auto;
+}
+.ico-pick {
+  height: 36px; border-radius: 9px; border: 1px solid var(--line); background: var(--card);
+  display: flex; align-items: center; justify-content: center; cursor: pointer;
+  color: var(--text); font-size: 18px;
+}
+.ico-pick.on { border-color: var(--primary); background: var(--primary-soft); }
+.grad-pick-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 6px; }
+.grad-pick {
+  height: 30px; border-radius: 9px; border: 2px solid transparent; cursor: pointer;
+}
+.grad-pick.on { border-color: var(--primary); }
+.grad-pick.none {
+  grid-column: span 2; font-size: var(--fs-xs); color: var(--text-3);
+  background: var(--card); border: 1px dashed var(--line);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* 小标题编辑 */
+.title-group { margin-top: 12px; }
+.title-group-name {
+  font-size: var(--fs-sm); font-weight: 600; margin-bottom: 6px;
+  padding-left: 8px; border-left: 3px solid var(--primary);
+}
+
 @media (max-width: 760px) {
   .theme-grid { grid-template-columns: 1fr; }
   .tl-grid { grid-template-columns: repeat(2, 1fr); }
@@ -35,4 +91,7 @@
   .banner-row { flex-wrap: wrap; }
   .banner-row .input { flex-basis: 100%; }
   .banner-row .select { flex: 1; width: auto; }
+  .feat-row { flex-wrap: wrap; }
+  .feat-name { flex-basis: 100%; order: -1; }
+  .ico-pick-grid { grid-template-columns: repeat(6, 1fr); }
 }
