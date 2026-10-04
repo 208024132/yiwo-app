@@ -1,5 +1,5 @@
 /* 任务进度：列表 + 编辑 + 新建 */
-UserShell.boot({ hideTab: true, back: "my.html", title: "任务进度" });
+UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.tasks") });
 
 (() => {
   const u = Store.currentUser();
