@@ -579,10 +579,11 @@ window.Store = (() => {
   let db;
   let bootSource = "seed";  // cache | legacy | seed
   let dirty = false;
+  let bootDb = null;        // 首帧引导快照对象（可能含剔图占位符），用于接管后补齐旧引用
 
   (function loadSync() {
     const cache = readJSON(BOOT_KEY);
-    if (cache && Array.isArray(cache.users)) { db = cache; bootSource = "cache"; return; }
+    if (cache && Array.isArray(cache.users)) { db = cache; bootDb = cache; bootSource = "cache"; return; }
     // 迁移：老版本 localStorage 里的数据，读进来后由 hydrate() 写入 IndexedDB
     const legacy = readJSON(LS_KEY);
     if (legacy && Array.isArray(legacy.users)) { db = legacy; bootSource = "legacy"; return; }
@@ -698,6 +699,37 @@ window.Store = (() => {
     try { location.reload(); } catch (e) { /* ignore */ }
   }
 
+  /**
+   * 引导快照在超预算时会被剔图（头像/动态图换成 yiwo-idb: 占位符），
+   * 页面脚本此时可能已经持有这些旧对象引用。接管到真实数据后，
+   * 只把占位符就地回填成真实图片，不覆盖其它字段（避免冲掉接管前的新改动）；
+   * DOM <img> 的占位符由 patchDeferredImages 负责。
+   */
+  function reviveBootRefs(saved) {
+    if (!bootDb || !saved) return;
+    const isPh = v => typeof v === "string" && v.indexOf(IMG_MARK) === 0;
+    const oldUsers = bootDb.users, newUsers = saved.users;
+    if (Array.isArray(oldUsers) && Array.isArray(newUsers)) {
+      newUsers.forEach(n => {
+        if (!n || n.id == null) return;
+        const o = oldUsers.find(x => x && x.id === n.id);
+        if (o && o !== n && isPh(o.avatarImg) && !isPh(n.avatarImg)) o.avatarImg = n.avatarImg;
+      });
+    }
+    const oldMoments = bootDb.moments, newMoments = saved.moments;
+    if (Array.isArray(oldMoments) && Array.isArray(newMoments)) {
+      newMoments.forEach(n => {
+        if (!n || n.id == null || !Array.isArray(n.photos)) return;
+        const o = oldMoments.find(x => x && x.id === n.id);
+        if (!o || o === n || !Array.isArray(o.photos)) return;
+        n.photos.forEach((np, i) => {
+          const op = o.photos[i];
+          if (op && np && isPh(op.src) && !isPh(np.src)) op.src = np.src;
+        });
+      });
+    }
+  }
+
   function hydrate() {
     return IDB.get().then(saved => {
       if (saved && Array.isArray(saved.users)) {
@@ -705,7 +737,9 @@ window.Store = (() => {
         // 例外：本页首帧就是真实数据（快照/老数据）且用户已经在接管前改过，
         // 此时内存里的才是最新意图，保留内存并回写，避免丢掉这次操作。
         const usedPlaceholder = bootSource === "seed";
+        reviveBootRefs(saved);
         if (!(pendingWrites && !usedPlaceholder)) db = saved;
+        bootDb = null;
         hydrating = false;
         pendingWrites = false;
         normalizeDb();
@@ -716,6 +750,7 @@ window.Store = (() => {
         return;
       }
       // 库为空：迁移老数据或播种新数据（db 已是最终值，可以安全落盘）
+      bootDb = null;
       hydrating = false;
       pendingWrites = false;
       if (bootSource === "legacy") {
@@ -735,6 +770,7 @@ window.Store = (() => {
       });
     }).catch(err => {
       // IndexedDB 不可用（隐私模式 / 浏览器不支持）：降级为内存 + localStorage 快照
+      bootDb = null;
       hydrating = false;
       pendingWrites = false;
       reportError("本地数据库不可用，已降级为浏览器本地缓存存储", err);

@@ -2,7 +2,7 @@
 UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.profile") });
 
 (() => {
-  const u = Store.currentUser();
+  let u = Store.currentUser();
   if (!u) return;
   const body = document.getElementById("profile-body");
   const EMOJIS = ["🦁", "🐼", "🐳", "🦊", "🐱", "🐰", "🐯", "🐨"];
@@ -312,4 +312,10 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
   });
 
   render();
+
+  // IndexedDB 接管完成后刷新引用并重渲染，避免继续使用首帧旧快照（可能含剔图占位符）
+  window.addEventListener("yiwo:store-ready", () => {
+    const fresh = Store.currentUser();
+    if (fresh) { u = fresh; render(); }
+  });
 })();
