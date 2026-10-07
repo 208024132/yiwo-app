@@ -5,7 +5,7 @@
    - 未配置云端环境 / 未链接云端账号时完全袖手旁观，本地功能零影响。
    - 云端个人数据包按 uid 一份（yiwo_kv/{uid}），只覆盖本人那份；
      本地其它账号的数据不会被清掉。
-   - 上行剥离密码；下行保留本地登录会话。
+   - 上行剥离密码；下行保留本地登录会话，且合并时不复活任何 password 字段。
    ============================================================ */
 window.CloudSync = (() => {
   const LINK_KEY = "yiwo_cloud_uid";     // 本机已链接的云端 uid
@@ -233,7 +233,8 @@ window.CloudSync = (() => {
    * 用云端数据构造本地镜像：
    * - 本人数据以云端为准；
    * - 本地其它账号的数据（云端没有的键）继续保留，避免误删；
-   * - 社交集合按记录 id 并集 + updated_at LWW 合并。
+   * - 社交集合按记录 id 并集 + updated_at LWW 合并；
+   * - 密码只存云端：所有用户对象合并后都剥掉 password，避免旧数据/云端残留写回本地。
    */
   function buildNext(kvData, uid, profile, localDb, soc) {
     const data = kvData || {};
@@ -256,17 +257,27 @@ window.CloudSync = (() => {
 
     const seen = {};
     const local = findUser(localDb, uid);
-    // 本人资料以云端为准，但保留本机字段（如明文密码只存本机）
+    // 本人资料以云端为准，但保留本机字段；密码只存云端，合并时绝不写回本地。
     if (profile || local) {
       const merged = Object.assign({}, local || {}, profile || {}, { id: uid });
+      delete merged.password;   // 下行合并不得复活本地旧密码 / 云端可能残留的 password
       if (!merged.nickname && merged.account) merged.nickname = String(merged.account).split("@")[0];
       next.users.push(merged);
       seen[uid] = 1;
     }
     (localDb.users || []).forEach(u => {
-      if (u && u.id && !seen[u.id]) { next.users.push(u); seen[u.id] = 1; }
+      if (u && u.id && !seen[u.id]) {
+        const kept = Object.assign({}, u);
+        delete kept.password;   // 本地其它账号同样不落密码
+        next.users.push(kept);
+        seen[u.id] = 1;
+      }
     });
-    if (!next.users.some(u => u && u.id === uid)) next.users.unshift(Object.assign({}, (localUser() || {}), { id: uid }));
+    if (!next.users.some(u => u && u.id === uid)) {
+      const fallback = Object.assign({}, (localUser() || {}), { id: uid });
+      delete fallback.password; // 兜底档案也不落密码
+      next.users.unshift(fallback);
+    }
     return next;
   }
 
