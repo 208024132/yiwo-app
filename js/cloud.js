@@ -20,16 +20,27 @@ window.Cloud = (() => {
 
   function isConfigured() { return !!ENV_ID; }
 
-  /* ---------- SDK 懒加载 ---------- */
+  /* ---------- SDK 懒加载（带 8s 超时兜底） ----------
+     网络抖动时 <script> 可能既不 onload 也不 onerror（挂起），
+     没有超时会让 signIn 永远等待、按钮永远禁用。 */
   function loadSdk() {
     if (typeof window.cloudbase !== "undefined" && window.cloudbase) return Promise.resolve(true);
     if (sdkPromise) return sdkPromise;
     sdkPromise = new Promise(resolve => {
       const s = document.createElement("script");
+      let settled = false;
+      const finish = ok => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        if (!ok) sdkPromise = null;   // 失败清空，允许下次调用重新加载
+        resolve(ok);
+      };
+      const timer = setTimeout(() => finish(false), 8000);
       s.src = SDK_URL;
       s.async = true;
-      s.onload = () => resolve(typeof window.cloudbase !== "undefined" && !!window.cloudbase);
-      s.onerror = () => { sdkPromise = null; resolve(false); };
+      s.onload = () => finish(typeof window.cloudbase !== "undefined" && !!window.cloudbase);
+      s.onerror = () => finish(false);
       document.head.appendChild(s);
     });
     return sdkPromise;
@@ -57,8 +68,29 @@ window.Cloud = (() => {
     }
   }
 
-  // 初始化 Promise<boolean>：未配置环境时同步为 false，零成本
-  const ready = init();
+  /* ---------- 初始化（幂等 + 失败可重试） ----------
+     旧版 `const ready = init()` 是一次性 Promise：页面加载瞬间若网络抖动导致
+     SDK 脚本加载失败，本页会话将永远返回「云端服务未启用」，用户只能整页刷新。
+     改为 ensureInit()：初始化失败后，下一次调用（如再点一次登录）会自动重试。 */
+  let initPromise = null;
+  let initFailed = false;
+  function ensureInit() {
+    if (app) return Promise.resolve(true);
+    if (!isConfigured()) return Promise.resolve(false);
+    if (!initPromise || initFailed) {
+      initFailed = false;
+      initPromise = init().then(ok => {
+        if (!ok) initFailed = true;   // 标记失败，下次 ensureInit() 重新走一遍
+        return ok;
+      });
+    }
+    return initPromise;
+  }
+  // 兼容旧引用（cloud-sync 旧版 boot 用 Cloud.ready）：保留启动即预热一次
+  const ready = ensureInit();
+
+  /** 供外部等待云端就绪（可重试版） */
+  function ensureReady() { return ensureInit(); }
 
   function enabled() { return isConfigured() && !!auth; }
 
@@ -77,7 +109,8 @@ window.Cloud = (() => {
   let pendingVerifier = null;
 
   async function sendCode(email, password) {
-    if (!(await ready)) return { ok: false, msg: "云端服务未启用" };
+    if (!isConfigured()) return { ok: false, msg: "云端服务未启用" };
+    if (!(await ensureInit())) return { ok: false, msg: "云端连接失败，请检查网络后重试" };
     const mail = String(email || "").trim();
     if (!mail) return { ok: false, msg: "请输入邮箱" };
     if (!password) return { ok: false, msg: "请先填写密码" };
@@ -93,7 +126,8 @@ window.Cloud = (() => {
 
   /* ---------- 邮箱验证码注册：第二步「校验验证码」 → 完成注册并登录 ---------- */
   async function verifyCode(code) {
-    if (!(await ready)) return { ok: false, msg: "云端服务未启用" };
+    if (!isConfigured()) return { ok: false, msg: "云端服务未启用" };
+    if (!(await ensureInit())) return { ok: false, msg: "云端连接失败，请检查网络后重试" };
     if (!pendingVerifier) return { ok: false, msg: "请先点击「发送验证码」" };
     try {
       const { data, error } = await pendingVerifier.verifyOtp({ token: String(code || "").trim() });
@@ -109,7 +143,8 @@ window.Cloud = (() => {
 
   /* ---------- 邮箱 + 密码登录 ---------- */
   async function signIn(email, password) {
-    if (!(await ready)) return { ok: false, msg: "云端服务未启用" };
+    if (!isConfigured()) return { ok: false, msg: "云端服务未启用" };
+    if (!(await ensureInit())) return { ok: false, msg: "云端连接失败，请检查网络后重试" };
     try {
       const { data, error } = await auth.signInWithPassword({
         email: String(email || "").trim(),
@@ -206,7 +241,7 @@ window.Cloud = (() => {
   }
 
   return {
-    isConfigured, ready, init,
+    isConfigured, ready, ensureReady, init,
     sendCode, verifyCode, signIn, signOut,
     getUid, pull, push,
     pullSocial, pushSocial,
