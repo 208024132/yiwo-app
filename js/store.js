@@ -500,6 +500,9 @@ window.Store = (() => {
 
   /* 旧数据补齐新增字段（老数据 / 导入备份 / 异步接管后都会调用） */
   function normalizeDb() {
+    // 账号体系重构：密码只存云端（CloudBase auth），本地用户档案不再保留明文密码。
+    // 这里顺带清洗历史遗留 / 导入备份里的 password 字段，避免旧数据继续留在本地。
+    (db.users || []).forEach(u => { if (u && u.password !== undefined) { delete u.password; dirty = true; } });
     ["remark", "chatHidden", "groups", "friendGroup", "friendNav"].forEach(k => {
       if (!db[k]) { db[k] = {}; dirty = true; }
     });
@@ -705,21 +708,19 @@ window.Store = (() => {
     return null;
   }
   function login(account, password) {
-    const u = db.users.find(x => x.account === String(account).trim());
-    if (!u) return { ok: false, msg: "账号不存在" };
-    if (u.password !== password) return { ok: false, msg: "密码不正确" };
-    db.session = { type: "user", uid: u.id };
-    persist();
-    flushNow();
-    return { ok: true, user: u };
+    // 账号体系重构：密码只存云端（CloudBase auth），本地不再保存/比对明文密码。
+    // 用户登录统一走 Cloud.signIn（js/login.js），本方法不再提供本地密码校验，
+    // 避免任何调用方绕开云端认证。未配置云端时由登录入口给出清晰提示。
+    return { ok: false, msg: "本地不再保存密码，请使用云端账号登录" };
   }
-  function register({ account, password, nickname }) {
+  function register({ account, nickname }) {
     account = String(account || "").trim();
     if (!/^[a-zA-Z0-9._%+-]+@qq\.com$/.test(account)) return { ok: false, msg: "请使用 QQ 邮箱注册（xxx@qq.com）" };
     if (db.users.some(u => u.account === account)) return { ok: false, msg: "该邮箱已注册" };
     const id = "u" + Date.now().toString().slice(-8);
+    // 账号体系重构：密码只交给云端（CloudBase auth），本地档案不再写入 password 字段。
     const user = {
-      id, account, password, nickname: nickname || account.split("@")[0], avatarEmoji: "🙂",
+      id, account, nickname: nickname || account.split("@")[0], avatarEmoji: "🙂",
       avatarColor: Math.floor(Math.random() * 8), signature: "这个人很懒，什么都没写",
       phone: "", age: 0, gender: "保密", birthday: "", region: "广东·深圳",
       privacyDefault: "friends", regTime: Date.now(),
@@ -738,7 +739,10 @@ window.Store = (() => {
   function updateProfile(uid, patch) {
     const u = db.users.find(x => x.id === uid);
     if (!u) return;
-    Object.assign(u, patch);
+    // 账号体系重构：密码只存云端（CloudBase auth），任何 profile 更新都不允许写入用户明文密码
+    const clean = Object.assign({}, patch);
+    delete clean.password;
+    Object.assign(u, clean);
     persist();
   }
 
@@ -1563,6 +1567,8 @@ window.Store = (() => {
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
     ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder", "socialMeta"].forEach(k => { if (!next[k]) next[k] = {}; });
     db = next;
+    // 账号体系重构：恢复备份时同样不落用户明文密码（密码只在云端）
+    (db.users || []).forEach(u => { if (u && u.password !== undefined) delete u.password; });
     ensureSettings();
     persist();
     flushNow();
