@@ -426,9 +426,8 @@ function openEnableSync() {
     }
 
     const r = await CloudSync.enter(c.uid);
-    // 让本机登录密码与云端保持一致，避免两端密码不同造成困惑
-    const me = Store.currentUser();
-    if (me) Store.updateProfile(me.id, { password: pwd });
+    // 账号体系重构：密码只存云端（CloudBase auth），本地档案不再写入明文密码。
+    // 此处不再把 pwd 写进本地 profile。
 
     s.close();
     renderSyncCard();
