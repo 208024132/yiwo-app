@@ -23,11 +23,6 @@
 
   document.getElementById("login-btn").onclick = () => doLogin(accountEl.value, pwdEl.value);
 
-  document.getElementById("guest-btn").onclick = () => {
-    const r = Store.login("yiwome@qq.com", "123456");
-    if (r.ok) location.href = "index.html";
-  };
-
   [accountEl, pwdEl].forEach(el => {
     el.addEventListener("input", () => { errEl.textContent = ""; });
   });
