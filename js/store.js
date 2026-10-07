@@ -81,26 +81,10 @@ window.Store = (() => {
     { key: "bank", name: "银行", types: ["bank"] },
   ];
   function seedWallets() {
-    return {
-      u10001: [
-        { id: "w1", name: "微信余额", type: "wx", liquid: true, balance: 1286.5, t: ts(-40, "10:00") },
-        { id: "w2", name: "支付宝余额", type: "alipay", liquid: true, balance: 2340, t: ts(-40, "10:01") },
-        { id: "w3", name: "中国银行", type: "bank", liquid: true, balance: 12680, t: ts(-40, "10:02") },
-        { id: "w4", name: "建设银行", type: "bank", liquid: true, balance: 5400, t: ts(-40, "10:03") },
-        { id: "w5", name: "农业银行", type: "bank", liquid: true, balance: 3200, t: ts(-40, "10:04") },
-        { id: "w6", name: "招商银行", type: "bank", liquid: false, balance: 20000, t: ts(-40, "10:05") },
-        { id: "w7", name: "邮政银行", type: "bank", liquid: true, balance: 860, t: ts(-40, "10:06") },
-      ],
-    };
+    return {};
   }
   function seedDebts() {
-    return {
-      u10001: [
-        { id: "d1", name: "招商信用卡", amount: 3250.5, t: ts(-40, "10:10") },
-        { id: "d2", name: "花呗", amount: 860, t: ts(-40, "10:11") },
-        { id: "d3", name: "京东白条", amount: 1280, t: ts(-40, "10:12") },
-      ],
-    };
+    return {};
   }
 
   /* ---------- 前端功能配置（后台「页面布局管理」可改） ----------
@@ -195,103 +179,19 @@ window.Store = (() => {
 
   /* ---------- 种子数据 ---------- */
   function seed() {
-    const users = [
-      { id: "u10001", account: "yiwome@qq.com", password: "123456", nickname: "以我同学", avatarEmoji: "🐳", avatarColor: 1,
-        signature: "认真记录每一天的自己 ✨", phone: "138****6688", age: 24, gender: "男", birthday: "2002-03-15", region: "广东·深圳",
-        privacyDefault: "friends", regTime: ts(-40, "09:30") },
-      { id: "u10002", account: "momo@qq.com", password: "123456", nickname: "抹茶星冰乐", avatarEmoji: "🍵", avatarColor: 6,
-        signature: "奶茶半糖去冰", phone: "137****2233", age: 23, gender: "女", birthday: "2003-07-22", region: "广东·广州",
-        privacyDefault: "public", regTime: ts(-36, "14:12") },
-      { id: "u10003", account: "coder@qq.com", password: "123456", nickname: "代码搬运工", avatarEmoji: "👨‍💻", avatarColor: 1,
-        signature: "Talk is cheap", phone: "136****8877", age: 26, gender: "男", birthday: "2000-11-08", region: "北京",
-        privacyDefault: "public", regTime: ts(-33, "21:45") },
-      { id: "u10004", account: "runner@qq.com", password: "123456", nickname: "跑步的阿泽", avatarEmoji: "🏃", avatarColor: 2,
-        signature: "每天 5 公里", phone: "135****5566", age: 25, gender: "男", birthday: "2001-01-30", region: "浙江·杭州",
-        privacyDefault: "friends", regTime: ts(-30, "07:05") },
-      { id: "u10005", account: "bookworm@qq.com", password: "123456", nickname: "读书的猫", avatarEmoji: "🐱", avatarColor: 4,
-        signature: "一周一本书", phone: "134****9900", age: 27, gender: "女", birthday: "1999-09-12", region: "上海",
-        privacyDefault: "public", regTime: ts(-28, "20:18") },
-      { id: "u10006", account: "lily@qq.com", password: "123456", nickname: "Lily 不吃辣", avatarEmoji: "🌸", avatarColor: 3,
-        signature: "爱拍照爱生活", phone: "133****4411", age: 22, gender: "女", birthday: "2004-05-06", region: "四川·成都",
-        privacyDefault: "public", regTime: ts(-24, "11:40") },
-      { id: "u10007", account: "chef@qq.com", password: "123456", nickname: "深夜食堂", avatarEmoji: "🍳", avatarColor: 5,
-        signature: "会做饭的程序员", phone: "132****1188", age: 28, gender: "男", birthday: "1998-12-25", region: "湖北·武汉",
-        privacyDefault: "friends", regTime: ts(-20, "18:22") },
-      { id: "u10008", account: "traveler@qq.com", password: "123456", nickname: "环游小鹿", avatarEmoji: "🦌", avatarColor: 2,
-        signature: "世界那么大", phone: "131****7733", age: 24, gender: "女", birthday: "2002-08-18", region: "福建·厦门",
-        privacyDefault: "public", regTime: ts(-15, "10:00") },
-      { id: "u10009", account: "fitness@qq.com", password: "123456", nickname: "铁馆老李", avatarEmoji: "💪", avatarColor: 0,
-        signature: "撸铁使我快乐", phone: "130****6622", age: 29, gender: "男", birthday: "1997-04-02", region: "江苏·南京",
-        privacyDefault: "friends", regTime: ts(-9, "06:30") },
-      { id: "u10010", account: "newbie@qq.com", password: "123456", nickname: "小新同学", avatarEmoji: "🐣", avatarColor: 5,
-        signature: "刚来，请多关照", phone: "139****3344", age: 21, gender: "男", birthday: "2005-10-01", region: "山东·青岛",
-        privacyDefault: "public", regTime: ts(-1, "16:55") },
-    ];
+    // 出厂不预置任何注册用户（原演示用户 u10001~u10010 已全部清除）
+    const users = [];
 
-    const friends = [
-      { a: "u10001", b: "u10002", since: ts(-30, "10:00") },
-      { a: "u10001", b: "u10003", since: ts(-25, "10:00") },
-      { a: "u10001", b: "u10004", since: ts(-18, "10:00") },
-      { a: "u10001", b: "u10005", since: ts(-12, "10:00") },
-      { a: "u10001", b: "u10006", since: ts(-6, "10:00") },
-    ];
-    const friendReqs = [
-      { from: "u10007", to: "u10001", t: ts(-1, "23:10") },
-      { from: "u10008", to: "u10001", t: ts(-2, "15:20") },
-    ];
+    // 无用户即无好友关系 / 好友请求 / 聊天 / 动态
+    const friends = [];
+    const friendReqs = [];
 
-    const chats = [
-      { a: "u10001", b: "u10002", msgs: [
-        { id: "m1", from: "u10002", text: "周末去爬山吗？⛰️", t: ts(0, "09:12"), read: true },
-        { id: "m2", from: "u10001", text: "可以呀，周六早上怎么样？", t: ts(0, "09:15"), read: true },
-        { id: "m3", from: "u10002", text: "没问题，8 点在老地方集合！", t: ts(0, "09:16"), read: true },
-        { id: "m4", from: "u10002", text: "记得带水和防晒哦～", t: ts(0, "09:20"), read: false },
-      ] },
-      { a: "u10001", b: "u10003", msgs: [
-        { id: "m5", from: "u10003", text: "你上次说的记账 App 很好用，谢谢推荐！", t: ts(-1, "20:01"), read: false },
-      ] },
-    ];
+    const chats = [];
 
-    const moments = [
-      { id: "p1", uid: "u10001", type: "photo", text: "今天的晚霞像打翻的调色盘 🌇", photos: [{ g: "linear-gradient(135deg,#f2994a,#ef5e47)", e: "🌇" }],
-        privacy: "friends", likes: ["u10002", "u10003", "u10004"], comments: [
-          { uid: "u10002", text: "太美了吧！在哪里拍的？", t: ts(0, "19:40") },
-        ], reposts: 1, t: ts(0, "18:52") },
-      { id: "p2", uid: "u10001", type: "text", text: "坚持记账第 30 天，小钱钱都在掌控之中 💰", photos: [],
-        privacy: "public", likes: ["u10002"], comments: [], reposts: 0, t: ts(-2, "21:10") },
-      { id: "p3", uid: "u10001", type: "photo", text: "健身房打卡，没有人能阻止我变强 🏋️", photos: [{ g: "linear-gradient(135deg,#56ccf2,#2f80ed)", e: "🏋️" }],
-        privacy: "friends", likes: ["u10004", "u10009"], comments: [
-          { uid: "u10004", text: "一起练啊兄弟", t: ts(-3, "20:05") },
-        ], reposts: 0, t: ts(-3, "19:30") },
-      { id: "p4", uid: "u10002", type: "photo", text: "秋天的第一杯奶茶 🍂", photos: [{ g: "linear-gradient(135deg,#a1e657,#43a047)", e: "🧋" }],
-        privacy: "public", likes: ["u10001", "u10006"], comments: [{ uid: "u10001", text: "半糖去冰谢谢", t: ts(-1, "15:12") }], reposts: 0, t: ts(-1, "14:58") },
-      { id: "p5", uid: "u10004", type: "text", text: "清晨 5 公里打卡，配速 5'30''，状态不错！", photos: [],
-        privacy: "public", likes: ["u10001"], comments: [], reposts: 0, t: ts(-1, "06:42") },
-      { id: "p6", uid: "u10005", type: "photo", text: "本周在读：《百年孤独》📚", photos: [{ g: "linear-gradient(135deg,#9b6cf7,#5f3dcf)", e: "📚" }],
-        privacy: "public", likes: ["u10001", "u10002", "u10003"], comments: [], reposts: 1, t: ts(-4, "22:20") },
-      { id: "p7", uid: "u10006", type: "photo", text: "川西自驾 Day3，随手一拍都是屏保", photos: [{ g: "linear-gradient(135deg,#f76f8e,#b23a6e)", e: "🏔️" }],
-        privacy: "public", likes: ["u10001"], comments: [], reposts: 0, t: ts(-5, "20:11") },
-      { id: "p8", uid: "u10003", type: "text", text: "新版本终于上线了，熬夜值了", photos: [],
-        privacy: "public", likes: ["u10001", "u10004"], comments: [], reposts: 0, t: ts(-6, "02:33") },
-    ];
+    const moments = [];
 
-    const accounts = {
-      u10001: [
-        { id: "a1", type: "out", cat: "food", amount: 26.5, note: "午餐·沙县小吃", date: dayStr(0), t: ts(0, "12:20") },
-        { id: "a2", type: "out", cat: "traffic", amount: 8, note: "地铁通勤", date: dayStr(0), t: ts(0, "08:45") },
-        { id: "a3", type: "out", cat: "shopping", amount: 129, note: "新耳机配件", date: dayStr(-1), t: ts(-1, "20:15") },
-        { id: "a4", type: "out", cat: "food", amount: 45, note: "晚餐·和同事聚餐", date: dayStr(-1), t: ts(-1, "19:00") },
-        { id: "a5", type: "in", cat: "income", amount: 8500, note: "9 月工资", date: dayStr(-2), t: ts(-2, "10:00") },
-        { id: "a6", type: "out", cat: "fun", amount: 68, note: "电影票", date: dayStr(-2), t: ts(-2, "19:30") },
-        { id: "a7", type: "out", cat: "food", amount: 18, note: "早餐·豆浆油条", date: dayStr(-3), t: ts(-3, "08:10") },
-        { id: "a8", type: "out", cat: "traffic", amount: 12.5, note: "打车", date: dayStr(-3), t: ts(-3, "22:05") },
-        { id: "a9", type: "out", cat: "home", amount: 1800, note: "房租", date: dayStr(-4), t: ts(-4, "09:00") },
-        { id: "a10", type: "out", cat: "shopping", amount: 89, note: "运动水壶", date: dayStr(-5), t: ts(-5, "15:40") },
-        { id: "a11", type: "out", cat: "food", amount: 32, note: "点外卖", date: dayStr(-5), t: ts(-5, "12:30") },
-        { id: "a12", type: "out", cat: "medical", amount: 56, note: "感冒药", date: dayStr(-6), t: ts(-6, "17:20") },
-        { id: "a13", type: "out", cat: "fun", amount: 25, note: "视频会员", date: dayStr(-6), t: ts(-6, "21:00") },
-      ],
-    };
+    // 用户数据一律为空（新注册用户从零开始）
+    const accounts = {};
 
     const books = {
       recommend: [
@@ -302,52 +202,17 @@ window.Store = (() => {
         { id: "b5", title: "被讨厌的勇气", author: "岸见一郎", tag: "心理", desc: "一切烦恼都来自人际关系。", g: "linear-gradient(135deg,#48bb78,#276749)" },
         { id: "b6", title: "活着", author: "余华", tag: "小说", desc: "人是为了活着本身而活着。", g: "linear-gradient(135deg,#9b2c2c,#5f1b1b)" },
       ],
-      shelf: {
-        u10001: [
-          { bid: "b6", pct: 78, since: ts(-20, "20:00") },
-          { bid: "b4", pct: 35, since: ts(-10, "20:00") },
-          { bid: "b3", pct: 100, since: ts(-5, "20:00") },
-        ],
-      },
+      shelf: {},
     };
 
-    const memos = {
-      u10001: [
-        { id: "mm1", text: "买牛奶、鸡蛋、全麦面包", tag: "购物", pin: true, t: ts(-1, "08:30") },
-        { id: "mm2", text: "下周三 14:00 产品评审会，记得提前准备 demo", tag: "工作", pin: true, t: ts(-2, "17:45") },
-        { id: "mm3", text: "灵感：给记账加一个「心愿单」功能，攒钱更有动力", tag: "灵感", pin: false, t: ts(-3, "23:12") },
-      ],
-    };
+    const memos = {};
+    const fitness = {};
+    const tasks = {};
 
-    const fitness = {
-      u10001: {
-        goalWeekly: 4,
-        days: {
-          [dayStr(0)]: ["run"],
-          [dayStr(-1)]: ["gym"],
-          [dayStr(-2)]: ["walk"],
-          [dayStr(-3)]: ["ride"],
-          [dayStr(-5)]: ["run", "gym"],
-          [dayStr(-7)]: ["yoga"],
-          [dayStr(-8)]: ["swim"],
-        },
-      },
-    };
-
-    const tasks = {
-      u10001: [
-        { id: "t1", title: "阅读《活着》到 100%", tag: "阅读", pct: 78, status: "doing", t: ts(-4, "10:00") },
-        { id: "t2", title: "每周健身 4 次", tag: "健身", pct: 60, status: "doing", t: ts(-6, "10:00") },
-        { id: "t3", title: "学会做 3 道新菜", tag: "生活", pct: 33, status: "todo", t: ts(-8, "10:00") },
-        { id: "t4", title: "整理 9 月账单", tag: "理财", pct: 100, status: "done", t: ts(-3, "10:00") },
-      ],
-    };
-
+    // 仅保留 1 个引导超级管理员：用于首次进入后台（进去后可自行改密、改名、新增管理员）
     const admins = [
       { id: "ad1", account: "admin@yiwo.com", password: "888888", name: "陈以我", phone: "13800001111", dept: "产品部",
         idcard: "4403**********1234", perms: ["users", "layout", "admins"], role: "超级管理员", t: ts(-50, "09:00") },
-      { id: "ad2", account: "wang@yiwo.com", password: "456789", name: "王运营", phone: "13900002222", dept: "运营部",
-        idcard: "4403**********5678", perms: ["users"], role: "普通管理员", t: ts(-20, "09:00") },
     ];
 
     return {
