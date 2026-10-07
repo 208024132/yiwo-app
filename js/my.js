@@ -68,7 +68,7 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
       <span class="icon-btn uc-edit">${UI.icon("edit", 20)}</span>
     </a>
 
-    <section class="card sync-card mt-16" id="sync-card"></section>
+    <!-- 多设备同步卡片已按产品要求隐藏；云同步仍在后台自动运行（shell-user.js boot → CloudSync.boot） -->
 
     <div class="sort-tip mt-16">
       ${UI.icon("info", 14)}<span class="txt-xs txt-3">长按拖动图标可调整功能顺序</span>
