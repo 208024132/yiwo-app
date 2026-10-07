@@ -267,6 +267,7 @@ window.Store = (() => {
       friendNav: {},
       remark: {},
       chatHidden: {},
+      socialMeta: {},
       settings: {
         appName: "以我",
         homeGreeting: "你好，{nickname} 👋",
@@ -506,6 +507,7 @@ window.Store = (() => {
     if (!db.debts) { db.debts = seedDebts(); dirty = true; }
     if (!db.customCats) { db.customCats = {}; dirty = true; }
     if (!db.catOrder) { db.catOrder = {}; dirty = true; }
+    if (!db.socialMeta) { db.socialMeta = {}; dirty = true; }
     if (ensureSettings()) dirty = true;
     // 迁移：早期版本为用户预置了「与默认完全相同」的宫格顺序，会遮蔽后台默认顺序，这里清理掉
     if (db.order) {
@@ -800,7 +802,28 @@ window.Store = (() => {
       if (m.orig && m.orig.uid === uid) m.orig.uid = newId;
     });
 
-    // 3) 更新用户本体与会话
+    // 3) 同步层记录键同样以 uid 拼接，需一并搬迁，否则改 ID 后又会重复同步出旧记录
+    if (db.socialMeta) {
+      const next = {};
+      Object.keys(db.socialMeta).forEach(key => {
+        const i = key.indexOf(":");
+        const kind = key.slice(0, i), rest = key.slice(i + 1);
+        const v = db.socialMeta[key] || {};
+        let newRest = rest, members = v.m || [];
+        if (kind === "moment") {
+          if (rest === uid) newRest = newId;
+        } else {
+          const pair = rest.split("|").map(x => (x === uid ? newId : x));
+          if (kind === "friend" || kind === "chat") pair.sort();
+          newRest = pair.join("|");
+          members = pair;
+        }
+        next[kind + ":" + newRest] = { at: v.at || 0, del: v.del || 0, m: members };
+      });
+      db.socialMeta = next;
+    }
+
+    // 4) 更新用户本体与会话
     const u = db.users.find(x => x.id === uid);
     if (u) u.id = newId;
     if (db.session && db.session.type === "user" && db.session.uid === uid) db.session.uid = newId;
@@ -845,6 +868,32 @@ window.Store = (() => {
     });
   }
 
+  /* ---------- 社交记录元信息（云端同步用，不影响本地语义） ----------
+     db.socialMeta[recordId] = { at, del, m }：
+     at = 最后修改时间（LWW 基准）、del = 是否已删除（墓碑）、m = 参与人（RLS members）。
+     未登记过的老数据由同步层按实体自带时间戳兜底。 */
+  function socialId(kind, a, b) {
+    if (kind === "friend" || kind === "chat") {
+      const x = String(a), y = String(b);
+      return kind + ":" + (x <= y ? x + "|" + y : y + "|" + x);
+    }
+    if (kind === "req") return "req:" + a + "|" + b;
+    return kind + ":" + a;   // moment
+  }
+  function socialMembers(kind, a, b) { return kind === "moment" ? [a] : [a, b]; }
+  // 标记一条社交记录发生变更（新增/修改）
+  function touchSocial(kind, a, b) {
+    if (!db.socialMeta) db.socialMeta = {};
+    db.socialMeta[socialId(kind, a, b)] = { at: Date.now(), del: 0, m: socialMembers(kind, a, b) };
+  }
+  // 标记一条社交记录被删除（墓碑：本地移除 + 云端留痕，避免换设备后“复活”）
+  function killSocial(kind, a, b) {
+    if (!db.socialMeta) db.socialMeta = {};
+    const id = socialId(kind, a, b);
+    const prev = db.socialMeta[id] || {};
+    db.socialMeta[id] = { at: Date.now(), del: 1, m: prev.m || socialMembers(kind, a, b) };
+  }
+
   /* ---------- 好友 ---------- */
   function listFriends(uid) {
     return db.friends
@@ -868,6 +917,7 @@ window.Store = (() => {
     const existed = db.friendReqs.some(r => r.from === uid && r.to === targetId);
     if (existed) return { ok: false, msg: "已发送过申请，等待对方通过" };
     db.friendReqs.push({ from: uid, to: targetId, t: Date.now() });
+    touchSocial("req", uid, targetId);
     persist();
     return { ok: true, msg: "好友申请已发送" };
   }
@@ -875,16 +925,20 @@ window.Store = (() => {
     const idx = db.friendReqs.findIndex(r => r.from === fromId && r.to === uid);
     if (idx >= 0) db.friendReqs.splice(idx, 1);
     if (!isFriend(uid, fromId)) db.friends.push({ a: uid, b: fromId, since: Date.now() });
+    killSocial("req", fromId, uid);
+    touchSocial("friend", uid, fromId);
     persist();
   }
   function rejectRequest(uid, fromId) {
     db.friendReqs = db.friendReqs.filter(r => !(r.from === fromId && r.to === uid));
+    killSocial("req", fromId, uid);
     persist();
   }
   function deleteFriend(uid, fid) {
     db.friends = db.friends.filter(f => !((f.a === uid && f.b === fid) || (f.a === fid && f.b === uid)));
     if (db.friendGroup && db.friendGroup[uid]) delete db.friendGroup[uid][fid];
     if (db.remark && db.remark[uid]) delete db.remark[uid][fid];
+    killSocial("friend", uid, fid);
     persist();
   }
 
@@ -905,18 +959,19 @@ window.Store = (() => {
       };
     });
   }
-  // 清空聊天内容，保留会话
+  // 清空聊天内容，保留会话（clearedAt 让“清空”在换设备合并时不被打回）
   function clearChat(uid, fid) {
     const c = db.chats.find(x => (x.a === uid && x.b === fid) || (x.a === fid && x.b === uid));
-    if (c) { c.msgs = []; persist(); }
+    if (c) { c.msgs = []; c.clearedAt = Date.now(); touchSocial("chat", uid, fid); persist(); }
   }
   // 删除会话：清空消息 + 从消息列表移除（好友关系保留）
   function deleteChat(uid, fid) {
     const c = db.chats.find(x => (x.a === uid && x.b === fid) || (x.a === fid && x.b === uid));
-    if (c) c.msgs = [];
+    if (c) { c.msgs = []; c.clearedAt = Date.now(); }
     if (!db.chatHidden) db.chatHidden = {};
     if (!db.chatHidden[uid]) db.chatHidden[uid] = [];
     if (!db.chatHidden[uid].includes(fid)) db.chatHidden[uid].push(fid);
+    touchSocial("chat", uid, fid);
     persist();
   }
   function sendMessage(uid, fid, text) {
@@ -928,15 +983,18 @@ window.Store = (() => {
     if (db.chatHidden && db.chatHidden[uid]) {
       db.chatHidden[uid] = db.chatHidden[uid].filter(x => x !== fid);
     }
+    touchSocial("chat", uid, fid);
     persist();
     return msg;
   }
   function markRead(uid, fid) {
+    let hit = false;
     db.chats.forEach(c => {
       if ((c.a === uid && c.b === fid) || (c.a === fid && c.b === uid)) {
-        c.msgs.forEach(m => { if (m.from === fid) m.read = true; });
+        c.msgs.forEach(m => { if (m.from === fid && !m.read) { m.read = true; hit = true; } });
       }
     });
+    if (hit) touchSocial("chat", uid, fid);
     persist();
   }
 
@@ -959,6 +1017,7 @@ window.Store = (() => {
     const i = m.likes.indexOf(uid);
     if (i >= 0) m.likes.splice(i, 1);
     else m.likes.push(uid);
+    touchSocial("moment", mid);
     persist();
     return { liked: i < 0 };
   }
@@ -966,18 +1025,22 @@ window.Store = (() => {
     const m = db.moments.find(x => x.id === mid);
     if (!m) return;
     m.comments.push({ uid, text, t: Date.now() });
+    touchSocial("moment", mid);
     persist();
   }
   function repost(mid, uid) {
     const orig = db.moments.find(x => x.id === mid);
     if (!orig) return;
+    const rid = "p" + Date.now();
     db.moments.push({
-      id: "p" + Date.now(), uid, type: "repost", text: "",
+      id: rid, uid, type: "repost", text: "",
       photos: [], orig: { id: orig.id, uid: orig.uid },
       privacy: getUser(uid).privacyDefault || "friends",
       likes: [], comments: [], reposts: 0, t: Date.now(),
     });
     orig.reposts = (orig.reposts || 0) + 1;
+    touchSocial("moment", orig.id);
+    touchSocial("moment", rid);
     persist();
   }
   function addMoment(uid, { text, photos = [], privacy } = {}) {
@@ -987,15 +1050,16 @@ window.Store = (() => {
       likes: [], comments: [], reposts: 0, t: Date.now(),
     };
     db.moments.unshift(m);
+    touchSocial("moment", m.id);
     persist();
     return m;
   }
   function setMomentPrivacy(mid, uid, privacy) {
     const m = db.moments.find(x => x.id === mid);
-    if (m && m.uid === uid) { m.privacy = privacy; persist(); return true; }
+    if (m && m.uid === uid) { m.privacy = privacy; touchSocial("moment", mid); persist(); return true; }
     return false;
   }
-  // 删除自己的动态，返回被删对象（供撤销恢复）
+  // 删除自己的动态，返回被删对象（供撤销恢复）；同步层留墓碑，避免换设备后“复活”
   function delMoment(mid, uid) {
     const i = db.moments.findIndex(m => m.id === mid);
     if (i < 0) return null;
@@ -1005,6 +1069,7 @@ window.Store = (() => {
       const o = db.moments.find(m => m.id === removed.orig.id);
       if (o) o.reposts = Math.max(0, (o.reposts || 0) - 1);
     }
+    killSocial("moment", mid);
     persist();
     return removed;
   }
@@ -1016,6 +1081,7 @@ window.Store = (() => {
       const o = db.moments.find(x => x.id === m.orig.id);
       if (o) o.reposts = (o.reposts || 0) + 1;
     }
+    touchSocial("moment", m.id);
     persist();
   }
 
@@ -1495,7 +1561,7 @@ window.Store = (() => {
     try { obj = JSON.parse(text); } catch (e) { return { ok: false, msg: "文件内容不是有效的 JSON" }; }
     const next = obj && obj.__yiwo ? obj.data : obj;
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
-    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder"].forEach(k => { if (!next[k]) next[k] = {}; });
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder", "socialMeta"].forEach(k => { if (!next[k]) next[k] = {}; });
     db = next;
     ensureSettings();
     persist();
@@ -1516,7 +1582,7 @@ window.Store = (() => {
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "云端数据无效" };
     const keepSession = !opts || opts.keepSession !== false;
     const session = keepSession ? db.session : null;
-    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder"].forEach(k => { if (!next[k]) next[k] = {}; });
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder", "socialMeta"].forEach(k => { if (!next[k]) next[k] = {}; });
     db = next;
     if (session) db.session = session;
     ensureSettings();
@@ -1773,7 +1839,7 @@ window.Store = (() => {
     // 数据备份
     exportBackup, importBackup,
     // 云端同步接入
-    getSnapshot, applyRemote, beginRemoteApply, endRemoteApply,
+    getSnapshot, applyRemote, beginRemoteApply, endRemoteApply, socialId,
     // 管理员
     loginAdmin, listAdmins, addAdmin, updateAdmin, hasPerm,
     // 仪表盘

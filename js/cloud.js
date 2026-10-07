@@ -13,6 +13,7 @@ window.Cloud = (() => {
 
   const SDK_URL = "https://static.cloudbase.net/cloudbase-js-sdk/3.10.1/cloudbase.full.js";
   const TABLE_KV = "yiwo_kv";    // 每个用户一行：id = 用户 ID，data = 个人数据整包
+  const TABLE_SOCIAL = "yiwo_social"; // 社交记录：一行一条（好友边/好友申请/会话/动态）
 
   let app = null, auth = null, db = null;
   let sdkPromise = null;
@@ -158,6 +159,37 @@ window.Cloud = (() => {
     }
   }
 
+  /* ---------- 社交数据读写（yiwo_social：RLS 已按 members 过滤，故无需前端条件） ---------- */
+
+  /** 拉取当前用户可见的社交记录 -> 数组 | null（失败返回 null 表示“无法连接”） */
+  async function pullSocial() {
+    if (!enabled() || !db) return null;
+    try {
+      const { data, error } = await db.from(TABLE_SOCIAL).select("*");
+      if (error) return null;
+      return Array.isArray(data) ? data : [];
+    } catch (e) {
+      return null;
+    }
+  }
+
+  /** 写入社交记录（按 id 批量 upsert；批量失败则逐条重试，成功返回 true） */
+  async function pushSocial(rows) {
+    if (!enabled() || !db || !Array.isArray(rows) || !rows.length) return true;
+    try {
+      const { error } = await db.from(TABLE_SOCIAL).upsert(rows, { onConflict: "id" });
+      if (!error) return true;
+    } catch (e) { /* 落到逐条补偿 */ }
+    let ok = true;
+    for (let i = 0; i < rows.length; i++) {
+      try {
+        const { error } = await db.from(TABLE_SOCIAL).upsert(rows[i], { onConflict: "id" });
+        if (error) ok = false;
+      } catch (e) { ok = false; }
+    }
+    return ok;
+  }
+
   /* ---------- 错误信息中文化 ---------- */
   function errMsg(e, fallback) {
     const m = String((e && (e.message || e.error_description || e.errMsg || e.msg || e.details)) || "");
@@ -176,6 +208,7 @@ window.Cloud = (() => {
     isConfigured, ready, init,
     sendCode, verifyCode, signIn, signOut,
     getUid, pull, push,
-    TABLE_KV,
+    pullSocial, pushSocial,
+    TABLE_KV, TABLE_SOCIAL,
   };
 })();
