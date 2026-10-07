@@ -103,6 +103,15 @@ window.Cloud = (() => {
     } catch (e) { return ""; }
   }
 
+  /* ---------- 当前登录用户的邮箱（用于给本地骨架档案补账号/昵称） ---------- */
+  async function getEmail() {
+    if (!enabled()) return "";
+    try {
+      const { data } = await auth.getSession();
+      return (data && data.session && data.session.user && data.session.user.email) || "";
+    } catch (e) { return ""; }
+  }
+
   /* ---------- 邮箱验证码注册：第一步「发送验证码」 ----------
      v3 的 signUp({email, password}) 本身就是「发送验证码」，
      返回的 data 上带 verifyOtp，用于第二步校验并完成注册登录。 */
@@ -243,7 +252,7 @@ window.Cloud = (() => {
   return {
     isConfigured, ready, ensureReady, init,
     sendCode, verifyCode, signIn, signOut,
-    getUid, pull, push,
+    getUid, getEmail, pull, push,
     pullSocial, pushSocial,
     TABLE_KV, TABLE_SOCIAL,
   };
