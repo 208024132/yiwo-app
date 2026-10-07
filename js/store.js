@@ -569,6 +569,10 @@ window.Store = (() => {
     notePendingWrite();
     scheduleFlush();
     maybeWriteBootCache();
+    // 云端同步钩子：云层未接入时零影响，保证纯本地可用
+    if (window.CloudSync && typeof window.CloudSync.onLocalChange === "function") {
+      try { window.CloudSync.onLocalChange(db); } catch (e) { /* 云层异常不得影响本地写入 */ }
+    }
   }
   function save() { persist(); }
 
@@ -755,17 +759,11 @@ window.Store = (() => {
     }
     return { ok: true, msg: "" };
   }
-  // 修改用户ID：校验格式/唯一性/每月 1 次，并把所有以 uid 为键的数据迁移到新 ID
-  function renameUserId(uid, rawId) {
-    const u = db.users.find(x => x.id === uid);
-    if (!u) return { ok: false, msg: "用户不存在" };
-    const newId = String(rawId || "").trim();
-    if (!newId) return { ok: false, msg: "请输入用户ID" };
-    if (newId === uid) return { ok: false, msg: "新用户ID与当前相同" };
-    if (!/^[A-Za-z0-9_]{4,16}$/.test(newId)) return { ok: false, msg: "用户ID为 4-16 位字母、数字或下划线" };
-    if (db.users.some(x => x.id === newId)) return { ok: false, msg: "该用户ID已被占用" };
-    const info = idChangeInfo(uid);
-    if (!info.ok) return { ok: false, msg: info.msg };
+  // 把 uid 为键的数据与本体引用整体迁移到 newId。
+  // 纯搬迁：不做格式/唯一性校验、不限次数、不写 idChangedAt。
+  // 供「用户主动改 ID」与「云端 uid 对齐」两条路径复用。
+  function migrateUid(uid, newId) {
+    if (!uid || !newId || uid === newId) return false;
 
     // 1) 迁移所有以 uid 为键的对象集合
     ["accounts", "wallets", "debts", "customCats", "catOrder", "order", "groups", "friendGroup", "remark", "chatHidden", "friendNav"].forEach(k => {
@@ -803,9 +801,28 @@ window.Store = (() => {
     });
 
     // 3) 更新用户本体与会话
-    u.id = newId;
-    u.idChangedAt = Date.now();
+    const u = db.users.find(x => x.id === uid);
+    if (u) u.id = newId;
     if (db.session && db.session.type === "user" && db.session.uid === uid) db.session.uid = newId;
+    // 必须落盘：改名后往往紧接着跳转页面，不落盘会在重载后丢失
+    persist();
+    return true;
+  }
+
+  // 修改用户ID：校验格式/唯一性/每月 1 次，通过后调用 migrateUid 搬迁数据
+  function renameUserId(uid, rawId) {
+    const u = db.users.find(x => x.id === uid);
+    if (!u) return { ok: false, msg: "用户不存在" };
+    const newId = String(rawId || "").trim();
+    if (!newId) return { ok: false, msg: "请输入用户ID" };
+    if (newId === uid) return { ok: false, msg: "新用户ID与当前相同" };
+    if (!/^[A-Za-z0-9_]{4,16}$/.test(newId)) return { ok: false, msg: "用户ID为 4-16 位字母、数字或下划线" };
+    if (db.users.some(x => x.id === newId)) return { ok: false, msg: "该用户ID已被占用" };
+    const info = idChangeInfo(uid);
+    if (!info.ok) return { ok: false, msg: info.msg };
+
+    migrateUid(uid, newId);
+    u.idChangedAt = Date.now();
 
     persist();
     flushNow();
@@ -1486,6 +1503,43 @@ window.Store = (() => {
     return { ok: true };
   }
 
+  /* ---------- 云端同步接入（供 js/cloud-sync.js 使用，不改变本地链路语义） ---------- */
+
+  /** 取当前内存镜像（只读用途，调用方不得直接改写） */
+  function getSnapshot() { return db; }
+
+  /**
+   * 下行：用云端数据整体替换内存镜像，默认保留本地登录会话。
+   * 复用 importBackup 的补齐逻辑，但不会把 session 冲掉。
+   */
+  function applyRemote(next, opts) {
+    if (!next || !Array.isArray(next.users)) return { ok: false, msg: "云端数据无效" };
+    const keepSession = !opts || opts.keepSession !== false;
+    const session = keepSession ? db.session : null;
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder"].forEach(k => { if (!next[k]) next[k] = {}; });
+    db = next;
+    if (session) db.session = session;
+    ensureSettings();
+    normalizeDb();
+    persist();
+    flushNow();
+    return { ok: true };
+  }
+
+  /**
+   * 云端下行屏障：接管期间禁止落盘。
+   * 直接复用 hydrate 的 hydrating / pendingWrites，避免种子占位数据覆盖真实数据。
+   */
+  function beginRemoteApply() { hydrating = true; }
+  function endRemoteApply() {
+    hydrating = false;
+    pendingWrites = false;
+    normalizeDb();
+    persist();
+    flushNow();
+    window.dispatchEvent(new CustomEvent("yiwo:store-ready", { detail: { source: "remote" } }));
+  }
+
   /* ---------- 我的页面宫格排序 ---------- */
   function getOrder(uid) { return db.order[uid] || ["moments", "bookshelf", "memo", "fitness", "tasks", "profile"]; }
   function getOrderRaw(uid) { return db.order[uid] ? db.order[uid].slice() : null; }
@@ -1682,7 +1736,7 @@ window.Store = (() => {
     CATS, SPORTS, PERMS, PROVINCES, regionLabel, WALLET_TYPES, WALLET_GROUPS, save,
     // 会话/用户
     currentUser, currentAdmin, login, register, logout, updateProfile, getUser, listUsers, filterUsers,
-    renameUserId, idChangeInfo,
+    renameUserId, idChangeInfo, migrateUid,
     // 好友
     listFriends, isFriend, pendingRequests, sentRequests, sendRequest, acceptRequest, rejectRequest, deleteFriend,
     // 好友分组
@@ -1718,6 +1772,8 @@ window.Store = (() => {
     getOrder, getOrderRaw, saveOrder,
     // 数据备份
     exportBackup, importBackup,
+    // 云端同步接入
+    getSnapshot, applyRemote, beginRemoteApply, endRemoteApply,
     // 管理员
     loginAdmin, listAdmins, addAdmin, updateAdmin, hasPerm,
     // 仪表盘

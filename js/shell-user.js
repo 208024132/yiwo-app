@@ -57,6 +57,9 @@ window.UserShell = (() => {
       if (!localStorage.getItem("yiwo_theme")) Theme.apply(Store.getSettings().defaultTheme);
     } catch (e) { /* ignore */ }
 
+    // 云端同步：恢复上次链接并拉取/上行，不阻塞首帧，异常静默
+    if (window.CloudSync) { try { CloudSync.boot(); } catch (e) { /* ignore */ } }
+
     const app = document.getElementById("app");
     const tabs = tabDefs();
     const modules = sideModules();
@@ -134,6 +137,8 @@ window.UserShell = (() => {
       sidenav.querySelector("[data-logout]").onclick = async () => {
         const ok = await UI.confirm("退出登录", "确定要退出当前账号吗？");
         if (!ok) return;
+        if (window.Cloud) { try { await Cloud.signOut(); } catch (e) { /* ignore */ } }
+        if (window.CloudSync) { try { CloudSync.reset(); } catch (e) { /* ignore */ } }
         Store.logout();
         location.replace("login.html");
       };
