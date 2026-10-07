@@ -235,8 +235,22 @@ window.CloudSync = (() => {
    * - 本地其它账号的数据（云端没有的键）继续保留，避免误删；
    * - 社交集合按记录 id 并集 + updated_at LWW 合并；
    * - 密码只存云端：所有用户对象合并后都剥掉 password，避免旧数据/云端残留写回本地。
+   * email：当前云端会话邮箱，用于给骨架档案补账号/昵称（可为空）。
    */
-  function buildNext(kvData, uid, profile, localDb, soc) {
+  // 骨架档案兜底：补齐昵称/注册时间/头像等默认字段，避免出现“全空用户”（管理后台渲染 NaN）。
+  function decorateUser(u, uid, email) {
+    if (!u) u = {};
+    u.id = uid;
+    if (!u.account && email) u.account = email;
+    if (!u.nickname) u.nickname = u.account ? String(u.account).split("@")[0] : ("用户" + String(uid).slice(-4));
+    if (!u.regTime) u.regTime = Date.now();
+    if (!u.avatarEmoji) u.avatarEmoji = "🙂";
+    if (u.avatarColor === undefined) u.avatarColor = Math.floor(Math.random() * 8);
+    if (!u.signature) u.signature = "这个人很懒，什么都没写";
+    if (!u.gender) u.gender = "保密";
+    return u;
+  }
+  function buildNext(kvData, uid, profile, localDb, soc, email) {
     const data = kvData || {};
     const next = {
       users: [],
@@ -261,7 +275,7 @@ window.CloudSync = (() => {
     if (profile || local) {
       const merged = Object.assign({}, local || {}, profile || {}, { id: uid });
       delete merged.password;   // 下行合并不得复活本地旧密码 / 云端可能残留的 password
-      if (!merged.nickname && merged.account) merged.nickname = String(merged.account).split("@")[0];
+      decorateUser(merged, uid, email);
       next.users.push(merged);
       seen[uid] = 1;
     }
@@ -274,7 +288,9 @@ window.CloudSync = (() => {
       }
     });
     if (!next.users.some(u => u && u.id === uid)) {
-      const fallback = Object.assign({}, (localUser() || {}), { id: uid });
+      // 兜底档案：云端无数据且本机无此用户（如换设备首次登录且云端资料缺失）。
+      // 必须补齐默认字段，否则会落一个只有 id 的空壳用户进本地库。
+      const fallback = decorateUser(Object.assign({}, (localUser() || {}), { id: uid }), uid, email);
       delete fallback.password; // 兜底档案也不落密码
       next.users.unshift(fallback);
     }
@@ -340,12 +356,15 @@ window.CloudSync = (() => {
 
   /* ---------- 下行 ---------- */
   // 返回社交集合本次是否被云端数据改变（用于决定是否需要回推）
-  function adopt(payload, uid, socialRows) {
+  async function adopt(payload, uid, socialRows) {
     applying = true;
     try {
       const localDb = Store.getSnapshot();
       const soc = mergeSocial(socialRows || [], localDb);
-      const next = buildNext(payload && payload.kv, uid, payload && payload.profile, localDb, soc);
+      // 尝试从云端会话取邮箱，给骨架档案补上账号/昵称（取不到不影响主流程）
+      let email = "";
+      try { email = await Cloud.getEmail(); } catch (e) { /* ignore */ }
+      const next = buildNext(payload && payload.kv, uid, payload && payload.profile, localDb, soc, email);
       Store.beginRemoteApply();
       try {
         Store.applyRemote(next, { keepSession: false });
@@ -382,7 +401,7 @@ window.CloudSync = (() => {
       const social = await pullSocialSafe();
       const hasRemote = !!(remote && remote.payload);
       if (hasRemote) {
-        adopt(remote.payload, uid, social);
+        await adopt(remote.payload, uid, social);
         const at = Number(remote.updatedAt) || Date.now();
         writeLS(SYNC_KEY, String(at));
         link(uid);
@@ -393,7 +412,7 @@ window.CloudSync = (() => {
       // 再把本地这份首传到云端。此处必须走 adopt，否则登录成功却没有本地会话，
       // 页面跳转后会因 currentUser() 为空被踢回登录页。
       link(uid);
-      adopt(null, uid, social);
+      await adopt(null, uid, social);
       const ok = await pushAll(true);
       if (!ok) setStatus("error", "首次上传失败，请稍后点「立即同步」重试");
       return { ok: true, adopted: false };
@@ -416,7 +435,7 @@ window.CloudSync = (() => {
     const remoteAt = Number(remote.updatedAt) || 0;
     const localAt = Number(readLS(SYNC_KEY)) || 0;
     if (remoteAt > localAt) {
-      const socialChanged = adopt(remote.payload, cloudUid, social);
+      const socialChanged = await adopt(remote.payload, cloudUid, social);
       writeLS(SYNC_KEY, String(remoteAt));
       setStatus("ok");
       if (socialChanged) await pushAll(true);   // 合并进来的本地记录回推云端
@@ -424,7 +443,7 @@ window.CloudSync = (() => {
     }
     // 个人数据以本地为准，但社交记录要按 LWW 合并（可能是另一台设备新增的）
     if (!social.length) return await pushAll();
-    const socialChanged = adopt(null, cloudUid, social);
+    const socialChanged = await adopt(null, cloudUid, social);
     return await pushAll(socialChanged);
   }
 
