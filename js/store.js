@@ -260,6 +260,7 @@ window.Store = (() => {
       wallets: seedWallets(),
       debts: seedDebts(),
       customCats: {},
+      catOrder: {},
       order: {},
       groups: {},
       friendGroup: {},
@@ -504,6 +505,7 @@ window.Store = (() => {
     if (!db.wallets) { db.wallets = seedWallets(); dirty = true; }
     if (!db.debts) { db.debts = seedDebts(); dirty = true; }
     if (!db.customCats) { db.customCats = {}; dirty = true; }
+    if (!db.catOrder) { db.catOrder = {}; dirty = true; }
     if (ensureSettings()) dirty = true;
     // 迁移：早期版本为用户预置了「与默认完全相同」的宫格顺序，会遮蔽后台默认顺序，这里清理掉
     if (db.order) {
@@ -766,7 +768,7 @@ window.Store = (() => {
     if (!info.ok) return { ok: false, msg: info.msg };
 
     // 1) 迁移所有以 uid 为键的对象集合
-    ["accounts", "wallets", "debts", "customCats", "order", "groups", "friendGroup", "remark", "chatHidden", "friendNav"].forEach(k => {
+    ["accounts", "wallets", "debts", "customCats", "catOrder", "order", "groups", "friendGroup", "remark", "chatHidden", "friendNav"].forEach(k => {
       const m = db[k];
       if (m && Object.prototype.hasOwnProperty.call(m, uid)) {
         m[newId] = m[uid];
@@ -1167,12 +1169,26 @@ window.Store = (() => {
     const list = (db.customCats && db.customCats[uid]) || [];
     return type ? list.filter(c => c.type === type) : list.slice();
   }
-  // 内置分类 + 用户自定义分类（按收/支类型）
+  // 内置分类 + 用户自定义分类（按收/支类型），按用户自定义的拖动顺序排列
   function listCats(uid, type) {
     const base = type === "in"
       ? CATS.filter(c => c.key === "income")
       : CATS.filter(c => c.key !== "income");
-    return base.concat(customCats(uid, type));
+    const all = base.concat(customCats(uid, type));
+    const saved = (db.catOrder && db.catOrder[uid] && db.catOrder[uid][type]) || null;
+    if (!saved || !saved.length) return all;
+    const def = {}; all.forEach(c => { def[c.key] = c; });
+    const out = [];
+    saved.forEach(k => { if (def[k]) { out.push(def[k]); delete def[k]; } });
+    all.forEach(c => { if (def[c.key]) out.push(c); });   // 新增分类补到末尾
+    return out;
+  }
+  // 保存拖动后的分类顺序（必须原样保存传入顺序）
+  function saveCatOrder(uid, type, keys) {
+    if (!db.catOrder) db.catOrder = {};
+    if (!db.catOrder[uid]) db.catOrder[uid] = {};
+    db.catOrder[uid][type] = (Array.isArray(keys) ? keys : []).slice();
+    persist();
   }
   function catInfo(uid, key, type) {
     const c = listCats(uid, type).find(x => x.key === key);
@@ -1462,7 +1478,7 @@ window.Store = (() => {
     try { obj = JSON.parse(text); } catch (e) { return { ok: false, msg: "文件内容不是有效的 JSON" }; }
     const next = obj && obj.__yiwo ? obj.data : obj;
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
-    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats"].forEach(k => { if (!next[k]) next[k] = {}; });
+    ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder"].forEach(k => { if (!next[k]) next[k] = {}; });
     db = next;
     ensureSettings();
     persist();
@@ -1683,7 +1699,7 @@ window.Store = (() => {
     listWallets, walletSummary, addWallet, updateWallet, delWallet, restoreWallet,
     listDebts, addDebt, updateDebt, delDebt, restoreDebt,
     listRecords, addRecord, repayDebt, delRecord, restoreRecord, getSummary,
-    customCats, listCats, catInfo, addCat, updateCat, delCat, restoreCat,
+    customCats, listCats, catInfo, addCat, updateCat, delCat, restoreCat, saveCatOrder,
     // 书架
     recommendBooks, myBooks, addToShelf, removeFromShelf, setProgress,
     // 备忘录

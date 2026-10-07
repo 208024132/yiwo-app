@@ -106,6 +106,12 @@
   transition: background 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 .qe-cat.on { background: var(--primary-soft); border-color: var(--primary); color: var(--primary-strong); font-weight: 700; }
+.qe-cat.dragging {
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.18); transform: scale(1.08);
+  position: relative; z-index: 3; opacity: 0.96;
+}
+.qe-cats.drag-on { touch-action: none; }
+.qe-cats.drag-on .qe-cat { cursor: grabbing; }
 .qe-cat-e { font-size: 14px; line-height: 1; }
 .qe-row { display: flex; gap: 10px; margin-top: 12px; }
 .qe-item-wrap { margin-top: 10px; }

@@ -212,7 +212,7 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
     const list = qeCats();
     if (!list.some(c => c.key === qeCat)) qeCat = list[0].key;
     wrap.innerHTML = list.map(c => `
-      <button class="qe-cat ${c.key === qeCat ? "on" : ""}" type="button" data-cat="${c.key}">
+      <button class="qe-cat ${c.key === qeCat ? "on" : ""}" type="button" draggable="false" data-cat="${c.key}">
         <span class="qe-cat-e">${c.e}</span><span class="qe-cat-n">${c.name}</span>
       </button>`).join("") + `
       <button class="qe-cat qe-cat-add" type="button" data-cat-add>
@@ -225,6 +225,79 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
       };
     });
     wrap.querySelector("[data-cat-add]").onclick = () => openCatSheet();
+    enableCatDrag(wrap);
+  }
+
+  /* 长按拖动排序分类（含自定义），顺序按用户保存 */
+  function enableCatDrag(wrap) {
+    if (wrap.__dragBound) return;   // 同一节点只绑定一次（内部会多次重绘 chips）
+    wrap.__dragBound = true;
+    const addChip = () => wrap.querySelector("[data-cat-add]");
+    const chips = () => Array.prototype.slice.call(wrap.querySelectorAll(".qe-cat[data-cat]"));
+    let timer = null, dragEl = null, sx = 0, sy = 0, suppress = false;
+
+    wrap.addEventListener("click", e => {
+      if (suppress) { suppress = false; e.preventDefault(); e.stopPropagation(); }
+    }, true);
+
+    wrap.addEventListener("pointerdown", e => {
+      const chip = e.target.closest(".qe-cat[data-cat]");
+      if (!chip || e.button) return;
+      suppress = false;              // 新手势开始，清掉上一次拖拽的抑制标记
+      sx = e.clientX; sy = e.clientY;
+      timer = setTimeout(() => {
+        timer = null;
+        dragEl = chip;
+        try { chip.setPointerCapture(e.pointerId); } catch (err) {}
+        chip.classList.add("dragging");
+        wrap.classList.add("drag-on");
+        if (navigator.vibrate) { try { navigator.vibrate(10); } catch (err) {} }
+      }, 300);
+    });
+
+    wrap.addEventListener("pointermove", e => {
+      if (!dragEl) {
+        if (timer && (Math.abs(e.clientX - sx) > 8 || Math.abs(e.clientY - sy) > 8)) { clearTimeout(timer); timer = null; }
+        return;
+      }
+      e.preventDefault();
+      const x = e.clientX;
+      const target = chips().filter(c => c !== dragEl).find(c => {
+        const r = c.getBoundingClientRect();
+        return x < r.left + r.width / 2;
+      });
+      const prev = new Map(chips().map(c => [c, c.getBoundingClientRect()]));
+      if (target) wrap.insertBefore(dragEl, target);
+      else wrap.insertBefore(dragEl, addChip());
+      // FLIP：先设反转 transform -> 强制回流 -> 再过渡到原位
+      chips().forEach(c => {
+        if (c === dragEl) return;
+        const p = prev.get(c); if (!p) return;
+        const dx = p.left - c.getBoundingClientRect().left;
+        if (!dx) return;
+        c.style.transition = "none";
+        c.style.transform = "translateX(" + dx + "px)";
+        void c.offsetWidth;
+        c.style.transition = "transform .18s ease";
+        c.style.transform = "";
+      });
+    });
+
+    const end = e => {
+      if (timer) { clearTimeout(timer); timer = null; }
+      if (!dragEl) return;
+      const el = dragEl;
+      dragEl = null;
+      suppress = true;
+      setTimeout(() => { suppress = false; }, 400);
+      el.classList.remove("dragging");
+      wrap.classList.remove("drag-on");
+      try { el.releasePointerCapture(e.pointerId); } catch (err) {}
+      chips().forEach(c => { c.style.transition = ""; c.style.transform = ""; });
+      Store.saveCatOrder(u.id, qeType === "in" ? "in" : "out", chips().map(c => c.dataset.cat));
+    };
+    wrap.addEventListener("pointerup", end);
+    wrap.addEventListener("pointercancel", end);
   }
 
   /* ---------- 自定义收支理由（分类）管理 ---------- */
