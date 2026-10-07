@@ -55,7 +55,7 @@ function render() {
                 <div class="flex items-center gap-10">
                   ${UI.avatarEl(u, "sm")}
                   <div style="min-width:0">
-                    <div class="ellipsis bold txt-sm">${UI.esc(u.nickname)}</div>
+                    <div class="ellipsis bold txt-sm">${UI.esc(u.nickname || "未设置")}</div>
                     <div class="txt-xs txt-3 ellipsis">${UI.esc(u.id)}</div>
                   </div>
                 </div>
@@ -70,7 +70,7 @@ function render() {
               <td>${UI.esc(u.gender)}</td>
               <td>${u.age || "—"}</td>
               <td>${UI.esc(u.region)}</td>
-              <td class="txt-2">${UI.fmtDateTime(u.regTime)}</td>
+              <td class="txt-2">${u.regTime ? UI.fmtDateTime(u.regTime) : "—"}</td>
               <td><button class="btn sm soft" data-view="${u.id}">查看</button></td>
             </tr>`).join("")}
         </tbody>
@@ -110,7 +110,7 @@ function openUser(uid) {
     ["年龄", u.age ? u.age : "—"],
     ["生日", u.birthday ? UI.esc(u.birthday) : "—"],
     ["地区", UI.esc(u.region)],
-    ["注册时间", UI.fmtDateTime(u.regTime)],
+    ["注册时间", u.regTime ? UI.fmtDateTime(u.regTime) : "—"],
   ];
 
   const asset = `
