@@ -68,7 +68,47 @@ window.Store = (() => {
     { key: "layout", name: "页面布局管理" },
     { key: "admins", name: "管理员管理" },
   ];
-  const REGIONS = ["广东·深圳", "广东·广州", "北京", "上海", "浙江·杭州", "四川·成都", "湖北·武汉", "江苏·南京", "福建·厦门", "山东·青岛"];
+  /* 省市两级数据（覆盖全国省级行政区 + 主要地级市） */
+  const PROVINCES = [
+    { n: "北京", c: ["北京"] },
+    { n: "天津", c: ["天津"] },
+    { n: "上海", c: ["上海"] },
+    { n: "重庆", c: ["重庆"] },
+    { n: "河北", c: ["石家庄", "唐山", "秦皇岛", "邯郸", "邢台", "保定", "张家口", "承德", "沧州", "廊坊", "衡水"] },
+    { n: "山西", c: ["太原", "大同", "阳泉", "长治", "晋城", "朔州", "晋中", "运城", "忻州", "临汾", "吕梁"] },
+    { n: "内蒙古", c: ["呼和浩特", "包头", "乌海", "赤峰", "通辽", "鄂尔多斯", "呼伦贝尔", "巴彦淖尔", "乌兰察布", "兴安", "锡林郭勒", "阿拉善"] },
+    { n: "辽宁", c: ["沈阳", "大连", "鞍山", "抚顺", "本溪", "丹东", "锦州", "营口", "阜新", "辽阳", "盘锦", "铁岭", "朝阳", "葫芦岛"] },
+    { n: "吉林", c: ["长春", "吉林", "四平", "辽源", "通化", "白山", "松原", "白城", "延边"] },
+    { n: "黑龙江", c: ["哈尔滨", "齐齐哈尔", "鸡西", "鹤岗", "双鸭山", "大庆", "伊春", "佳木斯", "七台河", "牡丹江", "黑河", "绥化", "大兴安岭"] },
+    { n: "江苏", c: ["南京", "无锡", "徐州", "常州", "苏州", "南通", "连云港", "淮安", "盐城", "扬州", "镇江", "泰州", "宿迁"] },
+    { n: "浙江", c: ["杭州", "宁波", "温州", "嘉兴", "湖州", "绍兴", "金华", "衢州", "舟山", "台州", "丽水"] },
+    { n: "安徽", c: ["合肥", "芜湖", "蚌埠", "淮南", "马鞍山", "淮北", "铜陵", "安庆", "黄山", "滁州", "阜阳", "宿州", "六安", "亳州", "池州", "宣城"] },
+    { n: "福建", c: ["福州", "厦门", "莆田", "三明", "泉州", "漳州", "南平", "龙岩", "宁德"] },
+    { n: "江西", c: ["南昌", "景德镇", "萍乡", "九江", "新余", "鹰潭", "赣州", "吉安", "宜春", "抚州", "上饶"] },
+    { n: "山东", c: ["济南", "青岛", "淄博", "枣庄", "东营", "烟台", "潍坊", "济宁", "泰安", "威海", "日照", "临沂", "德州", "聊城", "滨州", "菏泽"] },
+    { n: "河南", c: ["郑州", "开封", "洛阳", "平顶山", "安阳", "鹤壁", "新乡", "焦作", "濮阳", "许昌", "漯河", "三门峡", "南阳", "商丘", "信阳", "周口", "驻马店", "济源"] },
+    { n: "湖北", c: ["武汉", "黄石", "十堰", "宜昌", "襄阳", "鄂州", "荆门", "孝感", "荆州", "黄冈", "咸宁", "随州", "恩施", "仙桃", "潜江", "天门", "神农架"] },
+    { n: "湖南", c: ["长沙", "株洲", "湘潭", "衡阳", "邵阳", "岳阳", "常德", "张家界", "益阳", "郴州", "永州", "怀化", "娄底", "湘西"] },
+    { n: "广东", c: ["广州", "深圳", "珠海", "汕头", "佛山", "韶关", "湛江", "肇庆", "江门", "茂名", "惠州", "梅州", "汕尾", "河源", "阳江", "清远", "东莞", "中山", "潮州", "揭阳", "云浮"] },
+    { n: "广西", c: ["南宁", "柳州", "桂林", "梧州", "北海", "防城港", "钦州", "贵港", "玉林", "百色", "贺州", "河池", "来宾", "崇左"] },
+    { n: "海南", c: ["海口", "三亚", "三沙", "儋州", "琼海", "文昌", "万宁", "东方", "五指山"] },
+    { n: "四川", c: ["成都", "自贡", "攀枝花", "泸州", "德阳", "绵阳", "广元", "遂宁", "内江", "乐山", "南充", "眉山", "宜宾", "广安", "达州", "雅安", "巴中", "资阳", "阿坝", "甘孜", "凉山"] },
+    { n: "贵州", c: ["贵阳", "六盘水", "遵义", "安顺", "毕节", "铜仁", "黔西南", "黔东南", "黔南"] },
+    { n: "云南", c: ["昆明", "曲靖", "玉溪", "保山", "昭通", "丽江", "普洱", "临沧", "楚雄", "红河", "文山", "西双版纳", "大理", "德宏", "怒江", "迪庆"] },
+    { n: "西藏", c: ["拉萨", "日喀则", "昌都", "林芝", "山南", "那曲", "阿里"] },
+    { n: "陕西", c: ["西安", "铜川", "宝鸡", "咸阳", "渭南", "延安", "汉中", "榆林", "安康", "商洛"] },
+    { n: "甘肃", c: ["兰州", "嘉峪关", "金昌", "白银", "天水", "武威", "张掖", "平凉", "酒泉", "庆阳", "定西", "陇南", "临夏", "甘南"] },
+    { n: "青海", c: ["西宁", "海东", "海北", "黄南", "海南州", "果洛", "玉树", "海西"] },
+    { n: "宁夏", c: ["银川", "石嘴山", "吴忠", "固原", "中卫"] },
+    { n: "新疆", c: ["乌鲁木齐", "克拉玛依", "吐鲁番", "哈密", "昌吉", "博尔塔拉", "巴音郭楞", "阿克苏", "克孜勒苏", "喀什", "和田", "伊犁", "塔城", "阿勒泰", "石河子", "阿拉尔", "图木舒克", "五家渠", "北屯", "铁门关", "双河", "可克达拉", "昆玉"] },
+    { n: "台湾", c: ["台北", "新北", "桃园", "台中", "台南", "高雄", "基隆", "新竹", "嘉义", "宜兰", "花莲", "台东", "澎湖"] },
+    { n: "香港", c: ["香港"] },
+    { n: "澳门", c: ["澳门"] },
+  ];
+  // 省份 + 城市 -> 展示名（直辖市等省市同名时只显示一个）
+  function regionLabel(pName, cName) {
+    return !cName || pName === cName ? pName : pName + "·" + cName;
+  }
 
   /* 资产账户类型与分组（用于「总资产」） */
   const WALLET_TYPES = [
@@ -693,6 +733,82 @@ window.Store = (() => {
     Object.assign(u, patch);
     persist();
   }
+
+  /* ---------- 修改用户ID（每月限 1 次） ---------- */
+  function sameMonth(ts, now) {
+    const a = new Date(ts), b = new Date(now);
+    return a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth();
+  }
+  function nextMonthStr(ts) {
+    const d = new Date(ts);
+    const n = new Date(d.getFullYear(), d.getMonth() + 1, 1);
+    return n.getFullYear() + "-" + String(n.getMonth() + 1).padStart(2, "0") + "-01";
+  }
+  // 用户是否可以修改 ID（供 UI 提前展示提示）
+  function idChangeInfo(uid) {
+    const u = db.users.find(x => x.id === uid);
+    if (!u) return { ok: false, msg: "用户不存在" };
+    if (u.idChangedAt && sameMonth(u.idChangedAt, Date.now())) {
+      return { ok: false, msg: "本月已修改过用户ID，下次可修改时间：" + nextMonthStr(u.idChangedAt) };
+    }
+    return { ok: true, msg: "" };
+  }
+  // 修改用户ID：校验格式/唯一性/每月 1 次，并把所有以 uid 为键的数据迁移到新 ID
+  function renameUserId(uid, rawId) {
+    const u = db.users.find(x => x.id === uid);
+    if (!u) return { ok: false, msg: "用户不存在" };
+    const newId = String(rawId || "").trim();
+    if (!newId) return { ok: false, msg: "请输入用户ID" };
+    if (newId === uid) return { ok: false, msg: "新用户ID与当前相同" };
+    if (!/^[A-Za-z0-9_]{4,16}$/.test(newId)) return { ok: false, msg: "用户ID为 4-16 位字母、数字或下划线" };
+    if (db.users.some(x => x.id === newId)) return { ok: false, msg: "该用户ID已被占用" };
+    const info = idChangeInfo(uid);
+    if (!info.ok) return { ok: false, msg: info.msg };
+
+    // 1) 迁移所有以 uid 为键的对象集合
+    ["accounts", "wallets", "debts", "customCats", "order", "groups", "friendGroup", "remark", "chatHidden", "friendNav"].forEach(k => {
+      const m = db[k];
+      if (m && Object.prototype.hasOwnProperty.call(m, uid)) {
+        m[newId] = m[uid];
+        delete m[uid];
+      }
+    });
+    if (db.books && db.books.shelf && Object.prototype.hasOwnProperty.call(db.books.shelf, uid)) {
+      db.books.shelf[newId] = db.books.shelf[uid];
+      delete db.books.shelf[uid];
+    }
+    ["memos", "fitness", "tasks"].forEach(k => {
+      const m = db[k];
+      if (m && Object.prototype.hasOwnProperty.call(m, uid)) {
+        m[newId] = m[uid];
+        delete m[uid];
+      }
+    });
+
+    // 2) 改写真身引用
+    (db.friends || []).forEach(f => { if (f.a === uid) f.a = newId; if (f.b === uid) f.b = newId; });
+    (db.friendReqs || []).forEach(r => { if (r.from === uid) r.from = newId; if (r.to === uid) r.to = newId; });
+    (db.chats || []).forEach(c => {
+      if (c.a === uid) c.a = newId;
+      if (c.b === uid) c.b = newId;
+      (c.msgs || []).forEach(msg => { if (msg.from === uid) msg.from = newId; });
+    });
+    (db.moments || []).forEach(m => {
+      if (m.uid === uid) m.uid = newId;
+      if (Array.isArray(m.likes)) m.likes = m.likes.map(x => (x === uid ? newId : x));
+      (m.comments || []).forEach(cm => { if (cm.uid === uid) cm.uid = newId; });
+      if (m.orig && m.orig.uid === uid) m.orig.uid = newId;
+    });
+
+    // 3) 更新用户本体与会话
+    u.id = newId;
+    u.idChangedAt = Date.now();
+    if (db.session && db.session.type === "user" && db.session.uid === uid) db.session.uid = newId;
+
+    persist();
+    flushNow();
+    return { ok: true, id: newId };
+  }
   function getUser(id) { return db.users.find(u => u.id === id) || null; }
   function listUsers() {
     return [...db.users].sort((a, b) => b.regTime - a.regTime);
@@ -701,7 +817,7 @@ window.Store = (() => {
     q = q.trim().toLowerCase();
     return listUsers().filter(u => {
       if (gender && u.gender !== gender) return false;
-      if (region && u.region !== region) return false;
+      if (region && u.region !== region && !String(u.region || "").startsWith(region + "·")) return false;
       if (q) {
         const blob = [u.nickname, u.account, u.id, u.phone, u.signature, u.region, String(u.age)].join(" ").toLowerCase();
         if (!blob.includes(q)) return false;
@@ -1547,9 +1663,10 @@ window.Store = (() => {
   hydrate();
 
   return {
-    CATS, SPORTS, PERMS, REGIONS, WALLET_TYPES, WALLET_GROUPS, save,
+    CATS, SPORTS, PERMS, PROVINCES, regionLabel, WALLET_TYPES, WALLET_GROUPS, save,
     // 会话/用户
     currentUser, currentAdmin, login, register, logout, updateProfile, getUser, listUsers, filterUsers,
+    renameUserId, idChangeInfo,
     // 好友
     listFriends, isFriend, pendingRequests, sentRequests, sendRequest, acceptRequest, rejectRequest, deleteFriend,
     // 好友分组

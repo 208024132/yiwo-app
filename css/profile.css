@@ -83,6 +83,12 @@
 }
 .region-row:last-child { border-bottom: none; }
 .region-row.on { color: var(--primary); }
+.region-back {
+  display: inline-flex; align-items: center; gap: 4px; margin: 2px 0 6px;
+  background: none; border: none; padding: 4px 2px; cursor: pointer;
+  color: var(--primary-strong); font-size: var(--fs-sm); font-weight: 600;
+}
+.id-tip { margin: 8px 3px 0; line-height: 1.6; }
 
 /* 隐私说明 */
 .privacy-note { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.7; }

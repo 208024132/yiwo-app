@@ -40,10 +40,11 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
       <div class="list profile-list">
         ${fieldRow("网名", u.nickname, "nickname")}
         ${fieldRow("个性签名", u.signature || "未设置", "signature")}
-        <div class="list-item">
+        <div class="list-item tap" data-edit="uid">
           <div class="li-main"><div class="li-title">用户ID</div></div>
-          <span class="li-value num">${UI.esc(u.id)}</span>
+          <span class="li-value num ellipsis">${UI.esc(u.id)}</span>
           <button class="icon-btn" data-copy aria-label="复制">${UI.icon("layers", 18)}</button>
+          <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
         </div>
         ${fieldRow("手机号", disp(u.phone), "phone")}
         ${fieldRow("年龄", u.age ? u.age + " 岁" : "未设置", "age")}
@@ -237,21 +238,82 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
 
   function openRegion() {
     const s = UI.sheet(`
-      <div class="sheet-head"><h3>选择地区</h3>
+      <div class="sheet-head"><h3 data-r-title>选择地区</h3>
         <button class="icon-btn" data-x>${UI.icon("close", 18)}</button></div>
-      <div class="region-list">
-        ${Store.REGIONS.map(r => `
-          <div class="region-row ${u.region === r ? "on" : ""}" data-r="${r}">
-            <span>${r}</span>${u.region === r ? `<span>✓</span>` : ""}
-          </div>`).join("")}
-      </div>`);
-    s.el.querySelector("[data-x]").onclick = () => s.close();
-    s.el.querySelectorAll("[data-r]").forEach(el => el.onclick = () => {
-      Store.updateProfile(u.id, { region: el.dataset.r });
+      <div class="region-body" data-r-body></div>`);
+    s.el.querySelector("[data-x]").onclick = s.close;
+    const titleEl = s.el.querySelector("[data-r-title]");
+    const wrap = s.el.querySelector("[data-r-body]");
+
+    const pick = label => {
+      Store.updateProfile(u.id, { region: label });
       s.close();
       UI.toast("已保存", "success");
       render();
-    });
+    };
+
+    function paintProvinces() {
+      titleEl.textContent = "选择省份";
+      wrap.innerHTML = `<div class="region-list">${
+        Store.PROVINCES.map(p => `
+          <div class="region-row" data-p="${p.n}">
+            <span>${UI.esc(p.n)}</span>
+            <span class="li-arrow">${UI.icon("chevron-right", 16)}</span>
+          </div>`).join("")}</div>`;
+      wrap.querySelectorAll("[data-p]").forEach(el => el.onclick = () => {
+        const p = Store.PROVINCES.find(x => x.n === el.dataset.p);
+        if (!p) return;
+        if (p.c.length <= 1) { pick(Store.regionLabel(p.n, p.c[0])); return; }
+        paintCities(p);
+      });
+    }
+
+    function paintCities(p) {
+      titleEl.textContent = p.n + " · 选择城市";
+      wrap.innerHTML = `
+        <button class="region-back" type="button" data-back>${UI.icon("chevron-left", 16)} 返回省份</button>
+        <div class="region-list">${
+          p.c.map(c => {
+            const label = Store.regionLabel(p.n, c);
+            const on = u.region === label;
+            return `<div class="region-row ${on ? "on" : ""}" data-c="${c}">
+              <span>${UI.esc(c)}</span>${on ? `<span>✓</span>` : ""}
+            </div>`;
+          }).join("")}</div>`;
+      wrap.querySelector("[data-back]").onclick = paintProvinces;
+      wrap.querySelectorAll("[data-c]").forEach(el => el.onclick = () => pick(Store.regionLabel(p.n, el.dataset.c)));
+    }
+
+    paintProvinces();
+  }
+
+  function openIdEdit() {
+    const info = Store.idChangeInfo(u.id);
+    const s = UI.sheet(`
+      <div class="sheet-head"><h3>修改用户ID</h3>
+        <button class="icon-btn" data-x>${UI.icon("close", 18)}</button></div>
+      <div class="field"><label>用户ID</label>
+        <input class="input" type="text" maxlength="16" value="${UI.esc(u.id)}" placeholder="4-16 位字母/数字/下划线" data-id ${info.ok ? "" : "disabled"}></div>
+      <p class="id-tip txt-xs txt-3">${info.ok ? "用户ID每月仅可修改 1 次，修改后原 ID 立即失效。" : UI.esc(info.msg)}</p>
+      <div class="sheet-actions">
+        <button class="btn ghost" data-no>取消</button>
+        <button class="btn primary" data-ok ${info.ok ? "" : "disabled"}>保存</button>
+      </div>`);
+    s.el.querySelector("[data-x]").onclick = s.el.querySelector("[data-no]").onclick = () => s.close();
+    if (!info.ok) return;
+    const input = s.el.querySelector("[data-id]");
+    s.el.querySelector("[data-ok]").onclick = () => {
+      const v = input.value.trim();
+      if (v === u.id) { s.close(); return; }
+      const r = Store.renameUserId(u.id, v);
+      if (!r.ok) { UI.toast(r.msg, "warn"); return; }
+      const fresh = Store.currentUser();
+      if (fresh) u = fresh;
+      s.close();
+      UI.toast("用户ID已更新", "success");
+      render();
+    };
+    setTimeout(() => { input.focus(); input.select(); }, 150);
   }
 
   async function handleEdit(key) {
@@ -283,6 +345,8 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
       openBirthday();
     } else if (key === "region") {
       openRegion();
+    } else if (key === "uid") {
+      openIdEdit();
     }
   }
 

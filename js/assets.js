@@ -345,6 +345,8 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
     const amt = body.querySelector("[data-qe-amt]");
     const acc = body.querySelector("[data-qe-acc]");
     const debt = body.querySelector("[data-qe-debt]");
+    const itemWrap = body.querySelector("[data-qe-item-wrap]");
+    const itemInput = body.querySelector("[data-qe-item]");
     const saveBtn = body.querySelector("[data-qe-save]");
     if (!amt || !saveBtn) return;
 
@@ -352,6 +354,7 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
     function syncType() {
       const isRepay = qeType === "repay";
       if (catWrap) catWrap.style.display = isRepay ? "none" : "";
+      if (itemWrap) itemWrap.style.display = isRepay ? "none" : "";
       if (debtWrap) debtWrap.style.display = isRepay ? "" : "none";
       saveBtn.textContent = isRepay ? "还债" : "记账";
       if (isRepay) {
@@ -392,9 +395,10 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
         renderAll();
         return;
       }
-      Store.addRecord(u.id, { type: qeType, cat: qeCat, amount: v, note: "", date: UI.dayStr(0), accId: acc && acc.value ? acc.value : null });
+      Store.addRecord(u.id, { type: qeType, cat: qeCat, amount: v, note: itemInput ? itemInput.value.trim() : "", date: UI.dayStr(0), accId: acc && acc.value ? acc.value : null });
       UI.toast("已记一笔" + (qeType === "out" ? "支出" : "收入"), "success");
       amt.value = "";
+      if (itemInput) itemInput.value = "";
       renderAll();
     };
     saveBtn.onclick = save;
@@ -448,6 +452,9 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
           ${canRepay ? `<button type="button" data-type="repay" class="${qeType === "repay" ? "on" : ""}">还债</button>` : ""}
         </div>
         <div class="qe-cats" data-qe-cats></div>
+        <div class="qe-item-wrap" data-qe-item-wrap>
+          <input class="input qe-item" type="text" maxlength="20" placeholder="填写收支项目（可选），如：早餐 / 打车" data-qe-item aria-label="收支项目">
+        </div>
         ${canRepay ? `
         <div class="qe-debt" data-qe-debt-wrap>
           <select class="input qe-acc" data-qe-debt aria-label="选择要还的负债">

@@ -13,7 +13,7 @@ function render() {
   const list = Store.filterUsers({ q, gender, region });
   const total = Store.listUsers().length;
   const genderOpts = [["", "全部性别"], ["男", "男"], ["女", "女"], ["保密", "保密"]];
-  const regionOpts = [["", "全部地区"], ...Store.REGIONS.map(r => [r, r])];
+  const regionOpts = [["", "全部地区"], ...Store.PROVINCES.map(p => [p.n, p.n])];
 
   S.content.innerHTML = `
     <div class="card filter-card">
