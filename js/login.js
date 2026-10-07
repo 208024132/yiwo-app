@@ -22,23 +22,39 @@
 
     // 1) 云端优先：支持换设备登录（未配置云端时跳过）
     let cloudErr = "";
-    if (cloudOn()) {
+    const cloudTried = cloudOn();
+    if (cloudTried) {
       btn.disabled = true;
       try {
         const c = await Cloud.signIn(a, p);
         if (c.ok && c.uid) {
           if (window.CloudSync) { try { await CloudSync.enter(c.uid); } catch (e) { /* ignore */ } }
+          // 云端登录成功却没建立起本地会话（通常是本机数据初始化失败）时不能装作成功
+          if (!Store.currentUser()) {
+            btn.disabled = false;
+            errEl.textContent = "云端登录成功，但本机数据初始化失败，请稍后重试";
+            UI.toast("云端登录成功，但本机数据初始化失败，请稍后重试", "error");
+            return;
+          }
           location.href = "index.html";
           return;
         }
-        cloudErr = c.msg || "";
-      } catch (e) { /* 网络异常：走本地回退 */ }
+        cloudErr = c.msg || "云端登录失败";
+      } catch (e) {
+        cloudErr = "云端登录失败：" + ((e && e.message) || "未知错误");
+      }
       btn.disabled = false;
     }
 
-    // 2) 本地回退（老账号 / 离线）
+    // 2) 本地回退（老账号 / 离线）。注意：本机账号只在当前设备可见，换设备登不上。
     const r = Store.login(a, p);
-    if (r.ok) { location.href = "index.html"; return; }
+    if (r.ok) {
+      if (cloudErr) UI.toast("已用本机本地账号登录，云端未连接：" + cloudErr, "warn");
+      location.href = "index.html";
+      return;
+    }
+    // 失败原因必须留在页面上（toast 只停留 2 秒，很容易被漏看）
+    errEl.textContent = cloudErr || r.msg;
     UI.toast(cloudErr || r.msg, "error");
   }
 

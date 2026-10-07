@@ -201,7 +201,8 @@ window.Cloud = (() => {
     if (/(rate|too many|频繁|frequency|exhausted)/i.test(m)) return "操作过于频繁，请稍后再试";
     if (/(not\s*found|不存在|no user)/i.test(m)) return "账号不存在，请先注册";
     if (/(network|timeout|fetch|failed to fetch|load failed)/i.test(m)) return "网络异常，请检查网络后重试";
-    return fallback;
+    // 未归类的错误不吞掉：带上服务端原文，便于定位（例如「凭据验证失败」）
+    return fallback + "（" + m + "）";
   }
 
   return {

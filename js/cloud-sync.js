@@ -378,9 +378,11 @@ window.CloudSync = (() => {
         setStatus("ok");
         return { ok: true, adopted: true };
       }
-      // 云端没有个人数据：先并入云端已有的社交记录，再把本地这份首传到云端
+      // 云端没有个人数据：并入云端已有的社交记录，并建立本地登录会话，
+      // 再把本地这份首传到云端。此处必须走 adopt，否则登录成功却没有本地会话，
+      // 页面跳转后会因 currentUser() 为空被踢回登录页。
       link(uid);
-      if (social.length) adopt(null, uid, social);
+      adopt(null, uid, social);
       const ok = await pushAll(true);
       if (!ok) setStatus("error", "首次上传失败，请稍后点「立即同步」重试");
       return { ok: true, adopted: false };

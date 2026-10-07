@@ -93,25 +93,29 @@
 
     regBtn.disabled = true;
 
-    // 1) 先本地建号（保证离线也能用）
     const acc = account.value.trim();
+
+    // 1) 先完成云端注册（校验验证码）。必须放在本地建号之前：
+    //    否则云端失败时仍会建出“只在本机”的账号，换设备永远登不上。
+    let cloudUid = "";
+    if (cloudOn()) {
+      const c = await Cloud.verifyCode(code.value.trim());
+      if (!c.ok || !c.uid) {
+        regBtn.disabled = false;
+        err("code").textContent = c.msg || "云端注册失败，请重试";
+        return;
+      }
+      cloudUid = c.uid;
+    }
+
+    // 2) 本地建号（保证离线也能用）
     const r = Store.register({ account: acc, password: password.value, nickname: nickname.value.trim() });
     if (!r.ok) { regBtn.disabled = false; UI.toast(r.msg, "error"); return; }
-    const localId = r.user.id;
 
-    // 2) 云端注册并让 uid 对齐（未配置或失败则留作纯本地账号）
-    if (cloudOn()) {
-      try {
-        const c = await Cloud.verifyCode(code.value.trim());
-        if (c.ok && c.uid) {
-          Store.migrateUid(localId, c.uid);
-          if (window.CloudSync) { try { await CloudSync.enter(c.uid); } catch (e) { /* ignore */ } }
-        } else {
-          UI.toast("账号已创建，但云端同步未开启：" + (c.msg || "请稍后在「我的」页开启"), "warn");
-        }
-      } catch (e) {
-        UI.toast("账号已创建，但云端同步未开启，请稍后在「我的」页开启", "warn");
-      }
+    // 3) 本地 id 与云端 uid 对齐，并拉取该邮箱在云端的已有数据
+    if (cloudUid) {
+      Store.migrateUid(r.user.id, cloudUid);
+      if (window.CloudSync) { try { await CloudSync.enter(cloudUid); } catch (e) { /* ignore */ } }
     }
 
     location.href = "index.html";
