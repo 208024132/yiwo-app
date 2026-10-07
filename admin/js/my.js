@@ -14,6 +14,7 @@ function permChips(perms) {
 function render() {
   const a = Store.currentAdmin();
   if (!a) return;
+  const isSuper = Store.hasPerm(a, "admins");
 
   const rows = [
     ["姓名", UI.esc(a.name)],
@@ -60,10 +61,28 @@ function render() {
 
     <div class="card note-card">
       <p class="txt-xs txt-3">我的权限由超级管理员在「管理员管理」中配置。</p>
-    </div>`;
+    </div>
+    ${isSuper ? `
+    <div class="card mt-16">
+      <div class="li-title">危险操作</div>
+      <p class="txt-xs txt-3 mt-8">恢复出厂设置会清空全部用户、好友、聊天、动态、账本、任务等数据，并把管理员账号、主题与「页面布局管理」配置全部重置为初始状态。此操作不可撤销。</p>
+      <button class="btn danger block mt-8" id="factory-reset">${UI.icon("refresh", 16)} 恢复出厂设置</button>
+    </div>` : ""}`;
 
   S.content.querySelector("#edit-profile").onclick = openEdit;
   S.content.querySelector("#change-pwd").onclick = openPwd;
+  const fr = S.content.querySelector("#factory-reset");
+  if (fr) fr.onclick = openFactoryReset;
+}
+
+function openFactoryReset() {
+  UI.confirm("恢复出厂设置？", "将清空所有数据并重置为初始状态，且当前登录会退出。此操作不可撤销。", { danger: true, okText: "确认恢复" })
+    .then(async ok => {
+      if (!ok) return;
+      try { await Store.factoryReset(); } catch (e) {}
+      UI.toast("已恢复出厂设置", "success");
+      setTimeout(() => location.replace("index.html"), 700);
+    });
 }
 
 function openEdit() {

@@ -1534,6 +1534,15 @@ window.Store = (() => {
     };
   }
 
+  /* ---------- 危险操作：恢复出厂设置 ---------- */
+  /** 清空所有业务数据并重置为出厂种子（含管理员账号、主题、页面布局配置），同时退出登录 */
+  function factoryReset() {
+    db = seed();
+    db.session = null;
+    persist();
+    return flushNow();
+  }
+
   /* ---------- 启动异步接管（IndexedDB -> 内存镜像） ---------- */
   hydrate();
 
@@ -1580,5 +1589,7 @@ window.Store = (() => {
     loginAdmin, listAdmins, addAdmin, updateAdmin, hasPerm,
     // 仪表盘
     dashboard,
+    // 危险操作
+    factoryReset,
   };
 })();
