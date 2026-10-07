@@ -431,7 +431,8 @@ window.CloudSync = (() => {
   /* ---------- 页面启动：恢复上次的链接并同步 ---------- */
   async function boot() {
     if (!Cloud.isConfigured()) { setStatus("off"); return; }
-    const ok = await Cloud.ready;
+    // ensureReady：初始化失败可重试（配合 cloud.js 热修），避免网络抖动一次就永久 off
+    const ok = await Cloud.ensureReady();
     if (!ok) { setStatus("off"); return; }
     const cu = await Cloud.getUid();
     const saved = readLS(LINK_KEY);
