@@ -15,6 +15,7 @@ function render() {
   const a = Store.currentAdmin();
   if (!a) return;
   const isSuper = Store.hasPerm(a, "admins");
+  const mustPwd = !!a.mustChangePwd;
 
   const rows = [
     ["姓名", UI.esc(a.name)],
@@ -54,6 +55,18 @@ function render() {
       </div>
     </div>
 
+    ${mustPwd ? `
+    <div class="card mt-16 must-pwd-card">
+      <div class="flex items-center gap-10">
+        <span class="txt-3">${UI.icon("lock", 18)}</span>
+        <div class="flex-1">
+          <div class="bold txt-sm">首次登录必须修改默认密码</div>
+          <div class="txt-xs txt-3 mt-8">当前账号仍在使用系统初始密码，请立即设置新密码。</div>
+        </div>
+        <button class="btn sm primary" id="must-pwd-btn">去修改</button>
+      </div>
+    </div>` : ""}
+
     <div class="btn-row">
       <button class="btn ghost" id="edit-profile">${UI.icon("edit", 16)} 编辑资料</button>
       <button class="btn ghost" id="change-pwd">${UI.icon("lock", 16)} 修改密码</button>
@@ -71,6 +84,8 @@ function render() {
 
   S.content.querySelector("#edit-profile").onclick = openEdit;
   S.content.querySelector("#change-pwd").onclick = openPwd;
+  const mb = S.content.querySelector("#must-pwd-btn");
+  if (mb) mb.onclick = openPwd;
   const fr = S.content.querySelector("#factory-reset");
   if (fr) fr.onclick = openFactoryReset;
 }
@@ -127,17 +142,24 @@ function openPwd() {
     </div>`);
   s.el.querySelector("[data-close]").onclick = () => s.close();
   s.el.querySelector("[data-cancel]").onclick = () => s.close();
-  s.el.querySelector("[data-ok]").onclick = () => {
+  s.el.querySelector("[data-ok]").onclick = async () => {
     const old = s.el.querySelector("#pw-old").value;
     const nw = s.el.querySelector("#pw-new").value;
     const again = s.el.querySelector("#pw-again").value;
-    if (old !== Store.currentAdmin().password) { UI.toast("旧密码不正确", "error"); return; }
+    // 旧密码哈希比对，不再明文比对
+    const okOld = await Store.verifyAdminPwd(a, old);
+    if (!okOld) { UI.toast("旧密码不正确", "error"); return; }
     if (nw.length < 6) { UI.toast("新密码至少 6 位", "error"); return; }
     if (nw !== again) { UI.toast("两次输入的新密码不一致", "error"); return; }
-    Store.updateAdmin(a.id, { password: nw });
+    await Store.updateAdmin(a.id, { password: nw });
     UI.toast("密码已修改", "success");
     s.close();
+    render();
   };
 }
 
-render();})();
+render();
+// 首次登录强制改密：进入「我的」页自动弹出改密弹层
+if (Store.currentAdmin() && Store.currentAdmin().mustChangePwd) openPwd();
+})();
+
