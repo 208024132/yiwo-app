@@ -83,3 +83,5 @@
 @media (hover: hover) {
   .quick-item:hover { transform: translateY(-3px); box-shadow: 0 8px 22px rgba(17, 20, 26, 0.09); border-color: var(--primary-soft); }
 }
+/* 用户本地定制 4 列：覆盖 .quick-grid 默认 3 列（base.css 的 .grid-4 被后加载的 index.css 覆盖，这里显式加回） */
+.quick-grid.grid-4 { grid-template-columns: repeat(4, 1fr); }
