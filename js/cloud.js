@@ -116,6 +116,7 @@ window.Cloud = (() => {
      v3 的 signUp({email, password}) 本身就是「发送验证码」，
      返回的 data 上带 verifyOtp，用于第二步校验并完成注册登录。 */
   let pendingVerifier = null;
+  let pendingReset = null;
 
   async function sendCode(email, password) {
     if (!isConfigured()) return { ok: false, msg: "云端服务未启用" };
@@ -165,6 +166,43 @@ window.Cloud = (() => {
       return { ok: true, uid };
     } catch (e) {
       return { ok: false, msg: errMsg(e, "账号或密码不正确") };
+    }
+  }
+
+  /* ---------- 忘记密码：发送重置验证码（CloudBase v3 的 resetPasswordForEmail） ----------
+     v3 的 resetPasswordForEmail(email) 会向邮箱发送验证码，返回的 data 上带 updateUser，
+     用于第二步校验验证码并写入新密码（等价 Supabase 的 PASSWORD_RECOVERY 流程）。 */
+  async function sendResetCode(email) {
+    if (!isConfigured()) return { ok: false, msg: "云端服务未启用" };
+    if (!(await ensureInit())) return { ok: false, msg: "云端连接失败，请检查网络后重试" };
+    if (typeof auth.resetPasswordForEmail !== "function") return { ok: false, msg: "当前云端版本暂不支持邮箱找回密码，请稍后重试" };
+    const mail = String(email || "").trim();
+    if (!mail) return { ok: false, msg: "请输入邮箱" };
+    try {
+      const { data, error } = await auth.resetPasswordForEmail(mail);
+      if (error) return { ok: false, msg: errMsg(error, "验证码发送失败，请稍后重试") };
+      pendingReset = data;
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, msg: errMsg(e, "验证码发送失败，请稍后重试") };
+    }
+  }
+
+  /* ---------- 忘记密码：校验验证码并设置新密码 ---------- */
+  async function resetPassword(code, newPassword) {
+    if (!isConfigured()) return { ok: false, msg: "云端服务未启用" };
+    if (!(await ensureInit())) return { ok: false, msg: "云端连接失败，请检查网络后重试" };
+    if (!pendingReset) return { ok: false, msg: "请先点击「发送验证码」" };
+    const pwd = String(newPassword || "");
+    if (pwd.length < 8) return { ok: false, msg: "新密码至少 8 位" };
+    if (!/[A-Za-z]/.test(pwd) || !/\d/.test(pwd)) return { ok: false, msg: "新密码需同时包含字母和数字" };
+    try {
+      const { data, error } = await pendingReset.updateUser({ nonce: String(code || "").trim(), password: pwd });
+      if (error) return { ok: false, msg: errMsg(error, "验证码不正确或已失效") };
+      pendingReset = null;
+      return { ok: true };
+    } catch (e) {
+      return { ok: false, msg: errMsg(e, "验证码不正确或已失效") };
     }
   }
 
@@ -252,6 +290,7 @@ window.Cloud = (() => {
   return {
     isConfigured, ready, ensureReady, init,
     sendCode, verifyCode, signIn, signOut,
+    sendResetCode, resetPassword,
     getUid, getEmail, pull, push,
     pullSocial, pushSocial,
     TABLE_KV, TABLE_SOCIAL,
