@@ -1682,6 +1682,19 @@ window.Store = (() => {
     return { ok: true };
   }
 
+  /* ---------- 上次备份时间（轻量标记，仅用于「我的」页提醒文案） ---------- */
+  const LAST_BACKUP_KEY = "yiwo_last_backup_at";
+  function setLastBackupAt(ts) {
+    try { localStorage.setItem(LAST_BACKUP_KEY, String(ts)); } catch (e) { /* ignore */ }
+  }
+  function getLastBackupAt() {
+    try {
+      const raw = localStorage.getItem(LAST_BACKUP_KEY);
+      const n = raw ? Number(raw) : 0;
+      return isFinite(n) && n > 0 ? n : 0;
+    } catch (e) { return 0; }
+  }
+
   /* ---------- 云端同步接入（供 js/cloud-sync.js 使用，不改变本地链路语义） ---------- */
 
   /** 取当前内存镜像（只读用途，调用方不得直接改写） */
@@ -2008,7 +2021,7 @@ window.Store = (() => {
     // 排序
     getOrder, getOrderRaw, saveOrder,
     // 数据备份
-    exportBackup, importBackup,
+    exportBackup, importBackup, setLastBackupAt, getLastBackupAt,
     // 云端同步接入
     getSnapshot, applyRemote, beginRemoteApply, endRemoteApply, socialId,
     // 管理员
