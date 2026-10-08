@@ -14,16 +14,32 @@ UserShell.boot({ tab: null, title: dispName, back: "friends.html", hideTab: true
   const body = document.getElementById("profile-body");
   const nameOf = id => Store.displayName(u.id, id);   // 优先备注名
 
-  /* ---------- 动态卡片 ---------- */
+  /* ---------- 动态卡片（转发动态与 moments.js 渲染保持一致，显示被转发原文摘要） ---------- */
+  function findOriginal(id, origUid) {
+    return [...Store.listMoments({ scope: "all" }), ...Store.listMoments({ uid: origUid, scope: "user" })]
+      .find(m => m.id === id) || null;
+  }
+
   function momentCard(m) {
     const liked = (m.likes || []).includes(u.id);
-    const photos = (m.photos || []).map(p => UI.photoBox(p)).join("");
-    let text;
-    if (m.text) text = UI.esc(m.text);
-    else if (m.type === "repost" && m.orig) {
+    let content = "";
+    if (m.orig) {
+      const orig = findOriginal(m.orig.id, m.orig.uid);
       const ou = Store.getUser(m.orig.uid);
-      text = `<span class="m-repost">转发了 ${UI.esc(ou ? nameOf(ou.id) : "好友")} 的动态</span>`;
-    } else text = UI.esc("分享了动态");
+      content += `<div class="m-repost-tip">转发了 ${UI.esc(ou ? nameOf(ou.id) : "该用户")} 的动态</div>`;
+      if (orig) {
+        const op = orig.photos && orig.photos[0];
+        content += `<div class="m-repost-card">
+          ${orig.text ? `<div class="m-text">${UI.esc(orig.text)}</div>` : ""}
+          ${op ? UI.photoBox(op, "m-photo m-photo-sm") : ""}
+        </div>`;
+      }
+    } else {
+      if (m.text) content += `<div class="m-text">${UI.esc(m.text)}</div>`;
+      if (m.photos && m.photos.length) {
+        content += `<div class="m-photos" style="grid-template-columns:${m.photos.length > 1 ? "repeat(2,1fr)" : "1fr"}">${m.photos.map(p => UI.photoBox(p)).join("")}</div>`;
+      }
+    }
     return `
       <article class="card moment-card fade-in" data-mid="${m.id}">
         <div class="m-head">
@@ -33,8 +49,7 @@ UserShell.boot({ tab: null, title: dispName, back: "friends.html", hideTab: true
             <div class="m-time">${UI.timeAgo(m.t)}</div>
           </div>
         </div>
-        <div class="m-text">${text}</div>
-        ${photos ? `<div class="m-photos" style="grid-template-columns:${(m.photos.length > 1) ? "repeat(2,1fr)" : "1fr"}">${photos}</div>` : ""}
+        ${content}
         ${UI.qzInter({ likes: m.likes || [], comments: m.comments || [], nameOf })}
         ${UI.qzActs({ liked, likes: (m.likes || []).length, comments: (m.comments || []).length, reposts: m.reposts || 0 })}
       </article>`;
@@ -119,17 +134,17 @@ UserShell.boot({ tab: null, title: dispName, back: "friends.html", hideTab: true
         <div class="profile-name">${UI.esc(nameOf(fid))}</div>
         ${isF && remk ? `<div class="profile-nick">昵称：${UI.esc(target.nickname)}</div>` : ""}
         <div class="profile-sig">${UI.esc(target.signature || "这个人很懒，什么都没写")}</div>
-        ${target.region ? `<div class="profile-region">📍 ${UI.esc(target.region)}</div>` : ""}
+        ${isF && target.region ? `<div class="profile-region">📍 ${UI.esc(target.region)}</div>` : ""}
       </section>
       ${actions}
-      <section class="list profile-info">
-        ${isF ? `<div class="list-item"><span class="info-label">备注</span><span class="info-val">${UI.esc(remk || "未设置")}</span></div>
-        <div class="list-item"><span class="info-label">好友分组</span><span class="info-val">${UI.esc(grpName || "—")}</span></div>` : ""}
+      ${isF ? `<section class="list profile-info">
+        <div class="list-item"><span class="info-label">备注</span><span class="info-val">${UI.esc(remk || "未设置")}</span></div>
+        <div class="list-item"><span class="info-label">好友分组</span><span class="info-val">${UI.esc(grpName || "—")}</span></div>
         <div class="list-item"><span class="info-label">性别</span><span class="info-val">${UI.esc(target.gender || "保密")}</span></div>
         <div class="list-item"><span class="info-label">年龄</span><span class="info-val">${target.age ? target.age + " 岁" : "未填写"}</span></div>
         <div class="list-item"><span class="info-label">地区</span><span class="info-val">${UI.esc(target.region || "未填写")}</span></div>
         <div class="list-item"><span class="info-label">注册时间</span><span class="info-val">${UI.fmtDate(target.regTime)}</span></div>
-      </section>
+      </section>` : ""}
       <section class="section-title"><h2>${UI.esc(Store.getTitle("friend.moments"))}</h2></section>
       ${moments.length ? `<div class="moments-feed">${moments.map(momentCard).join("")}</div>` : UI.emptyBox("🍃", "暂无动态")}
     `;
