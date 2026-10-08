@@ -1,0 +1,7 @@
+{
+  "name": "admin-users",
+  "version": "1.0.0",
+  "description": "yiwo app admin users reader (service_role -> yiwo_admin_profiles)",
+  "main": "index.js",
+  "dependencies": {}
+}
