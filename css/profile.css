@@ -94,4 +94,7 @@
 .privacy-note { font-size: var(--fs-xs); color: var(--text-3); line-height: 1.7; }
 .privacy-note-card { padding: 14px 16px; }
 
+/* 注销账号 */
+.profile-list .delete-row .li-title { color: var(--danger); }
+
 #profile-body { padding-bottom: calc(28px + env(safe-area-inset-bottom, 0px)); }
