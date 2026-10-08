@@ -83,8 +83,6 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
       <span class="icon-btn uc-edit">${UI.icon("edit", 20)}</span>
     </a>
 
-    <section class="card sync-card fade-in mt-16" id="sync-card"></section>
-
     <div class="sort-tip mt-16">
       ${UI.icon("info", 15)}<span>长按图标可拖动排序</span>
     </div>
@@ -116,7 +114,6 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
   bindSort();
   bindList();
   bindGridStyle();
-  bindCloud();
 })();
 
 /* ---------- 长按拖动排序（跟手幽灵 + FLIP 过渡） ---------- */
@@ -353,139 +350,3 @@ function openBackup() {
   };
 }
 
-/* ---------- 多设备同步 ---------- */
-function pad2(n) { return (n < 10 ? "0" : "") + n; }
-
-function bindCloud() {
-  renderSyncCard();
-  window.addEventListener("yiwo:cloud-status", renderSyncCard);
-}
-
-function renderSyncCard() {
-  const box = document.getElementById("sync-card");
-  if (!box) return;
-  const configured = !!(window.Cloud && Cloud.isConfigured());
-  const linked = !!(window.CloudSync && CloudSync.isLinked());
-  const st = (window.CloudSync && CloudSync.getStatus()) || { state: "idle", at: 0, msg: "" };
-
-  const LABEL = { off: "未启用", idle: "未开启", syncing: "同步中…", ok: "已同步", offline: "离线", error: "同步失败" };
-  let stateText = LABEL[st.state] || "未开启";
-  let sub;
-  if (!configured) {
-    stateText = "未启用";
-    sub = "尚未配置云端环境，数据仅保存在本机";
-  } else if (!linked) {
-    stateText = "未开启";
-    sub = "开启后可用同一邮箱在手机、电脑间同步";
-  } else {
-    const at = (CloudSync.getLastSyncAt && CloudSync.getLastSyncAt()) || st.at;
-    const d = at ? new Date(at) : null;
-    sub = st.msg || (d ? "上次同步 " + pad2(d.getHours()) + ":" + pad2(d.getMinutes()) : "等待首次同步");
-  }
-
-  box.innerHTML = `
-    <div class="sc-row">
-      <span class="sc-ico${linked ? " on" : ""}">${UI.icon("shield", 20)}</span>
-      <div class="sc-main">
-        <div class="sc-title">多设备同步 <span class="sc-state ${st.state}">${UI.esc(stateText)}</span></div>
-        <div class="sc-sub txt-xs txt-3 ellipsis">${UI.esc(sub)}</div>
-      </div>
-      ${linked ? "" : `<button class="btn ghost sm" id="sc-action">开启</button>`}
-    </div>`;
-
-  const act = box.querySelector("#sc-action");
-  if (act) {
-    act.onclick = () => {
-      if (!configured) { openCloudInfo(); return; }
-      openEnableSync();
-    };
-  }
-}
-
-function openCloudInfo() {
-  const s = UI.sheet(`
-    <div class="sheet-head"><h3>多设备同步</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
-    <div class="about-rows">
-      <p class="txt-sm txt-2">当前版本尚未开通云端同步，你的数据仅保存在本机。</p>
-      <p class="txt-sm txt-2">如需跨设备同步，请联系管理员开通。</p>
-    </div>`);
-  s.el.querySelector("[data-close]").onclick = s.close;
-}
-
-function openEnableSync() {
-  const u = Store.currentUser();
-  const s = UI.sheet(`
-    <div class="sheet-head"><h3>开启多设备同步</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
-    <p class="txt-sm txt-2 sc-tip">开启后，用同一个邮箱在手机或电脑登录即可看到这份数据。当前本机账号会与云端账号绑定。</p>
-    <div class="field"><label for="cs-email">邮箱</label><input class="input" id="cs-email" type="text" value="${UI.esc(u.account || "")}" placeholder="name@example.com"></div>
-    <div class="field"><label for="cs-pwd">密码</label><input class="input" id="cs-pwd" type="password" placeholder="设置云端账号密码"></div>
-    <div class="field"><label for="cs-code">邮箱验证码</label>
-      <div class="input-group"><input class="input" id="cs-code" type="text" maxlength="6" inputmode="numeric" placeholder="6 位数字"><button class="btn ghost sm" id="cs-send">发送验证码</button></div>
-    </div>
-    <div class="field-err" id="cs-err"></div>
-    <button class="btn primary block mt-16" id="cs-ok">开启同步</button>`);
-
-  s.el.querySelector("[data-close]").onclick = s.close;
-  const emailEl = s.el.querySelector("#cs-email");
-  const pwdEl = s.el.querySelector("#cs-pwd");
-  const codeEl = s.el.querySelector("#cs-code");
-  const errEl = s.el.querySelector("#cs-err");
-  const sendBtn = s.el.querySelector("#cs-send");
-  const okBtn = s.el.querySelector("#cs-ok");
-  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-  let codeSent = false;
-
-  sendBtn.onclick = async () => {
-    const email = emailEl.value.trim();
-    if (!emailRe.test(email)) { errEl.textContent = "请填写正确的邮箱地址（如 name@example.com）"; return; }
-    if (!pwdEl.value) { errEl.textContent = "请先填写云端账号密码"; return; }
-    errEl.textContent = "";
-    sendBtn.disabled = true; sendBtn.textContent = "发送中…";
-    const r = await Cloud.sendCode(email, pwdEl.value);
-    if (!r.ok) { sendBtn.disabled = false; sendBtn.textContent = "发送验证码"; errEl.textContent = r.msg; return; }
-    codeSent = true;
-    let n = 60;
-    sendBtn.textContent = n + "s";
-    const t = setInterval(() => {
-      n--;
-      if (n <= 0) { clearInterval(t); sendBtn.disabled = false; sendBtn.textContent = "发送验证码"; }
-      else sendBtn.textContent = n + "s";
-    }, 1000);
-    UI.toast("验证码已发送至你的邮箱", "success");
-  };
-
-  okBtn.onclick = async () => {
-    const email = emailEl.value.trim();
-    const pwd = pwdEl.value;
-    const code = codeEl.value.trim();
-    if (!emailRe.test(email)) { errEl.textContent = "请填写正确的邮箱地址（如 name@example.com）"; return; }
-    if (!pwd) { errEl.textContent = "请输入云端账号密码"; return; }
-    errEl.textContent = "";
-    okBtn.disabled = true; okBtn.textContent = "处理中…";
-
-    // 云端已有该账号则直接登录，否则用验证码注册
-    let c = await Cloud.signIn(email, pwd);
-    if (!(c.ok && c.uid)) {
-      if (!codeSent || !/^\d{6}$/.test(code)) {
-        okBtn.disabled = false; okBtn.textContent = "开启同步";
-        errEl.textContent = "该邮箱还没有云端账号，请先「发送验证码」并填写收到的 6 位验证码";
-        return;
-      }
-      c = await Cloud.verifyCode(code);
-    }
-    if (!(c.ok && c.uid)) {
-      okBtn.disabled = false; okBtn.textContent = "开启同步";
-      errEl.textContent = c.msg || "开启失败，请稍后重试";
-      return;
-    }
-
-    const r = await CloudSync.enter(c.uid);
-    // 账号体系重构：密码只存云端（CloudBase auth），本地档案不再写入明文密码。
-    // 此处不再把 pwd 写进本地 profile。
-
-    s.close();
-    renderSyncCard();
-    UI.toast(r && r.ok ? "多设备同步已开启" : "已绑定云端账号，但首次同步失败，将自动重试", r && r.ok ? "success" : "warn");
-  };
-}
