@@ -739,7 +739,7 @@ window.Store = (() => {
   }
   function register({ account, nickname }) {
     account = String(account || "").trim();
-    if (!/^[a-zA-Z0-9._%+-]+@qq\.com$/.test(account)) return { ok: false, msg: "请使用 QQ 邮箱注册（xxx@qq.com）" };
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account)) return { ok: false, msg: "请输入正确的邮箱地址（如 name@example.com）" };
     if (db.users.some(u => u.account === account)) return { ok: false, msg: "该邮箱已注册" };
     const id = "u" + Date.now().toString().slice(-8);
     // 账号体系重构：密码只交给云端（CloudBase auth），本地档案不再写入 password 字段。
