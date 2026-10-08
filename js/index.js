@@ -34,7 +34,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
   const todayExpense = summary.trend.length ? summary.trend[summary.trend.length - 1].amount : 0;
 
   // 问候副标题动态化：根据今天是否记账 + 连续打卡天数生成
-  let helloSub = "今天还没记账，记一笔吧";
+  let helloSub = "记下第一笔开销，开始了解自己的消费";
   if (summary.trend.length && summary.trend[summary.trend.length - 1].amount !== 0) {
     helloSub = `今天已支出 ${UI.fmtMoney(todayExpense)}，继续保持 🌟`;
   }
@@ -101,7 +101,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
           </div>
           ${photo ? UI.photoBox(photo, "hm-photo") : ""}
         </div>`;
-      }).join("") : UI.emptyBox("🍃", "还没有好友动态", "去添加好友，看看大家都在做什么", { text: "去添加好友", href: "add-friend.html" })}
+      }).join("") : UI.emptyBox("🍃", "还没有好友动态", "加个好友，看看大家最近分享了什么", { text: "去添加好友", href: "add-friend.html" })}
     </section>`;
   }
 
@@ -121,7 +121,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
             <div class="progress mt-8"><i style="width:${t.pct}%"></i></div>
           </div>
           <span class="ht-pct num">${t.pct}%</span>
-        </div>`).join("") : UI.emptyBox("🎯", "今天没有待办任务", "添加一个任务，让生活更有条理", { text: "去添加", href: "tasks.html" })}
+        </div>`).join("") : UI.emptyBox("🎯", "今天没有待办任务", "添加一个任务，让今天的目标清晰可见", { text: "去添加", href: "tasks.html" })}
     </section>`;
   }
 
