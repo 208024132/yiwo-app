@@ -40,9 +40,6 @@ if (friend) {
 
   Store.markRead(u.id, fid);
 
-  const REPLIES = ["收到收到！", "哈哈哈好的", "下次一起呀", "👌 没问题"];
-  let replyTimer = null;
-
   function scrollBottom() {
     requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight));
   }
@@ -72,12 +69,6 @@ if (friend) {
     input.value = "";
     Store.sendMessage(u.id, fid, text);
     render();
-    // 模拟好友自动回复
-    if (replyTimer) clearTimeout(replyTimer);
-    replyTimer = setTimeout(() => {
-      Store.sendMessage(fid, u.id, REPLIES[Math.floor(Math.random() * REPLIES.length)]);
-      render();
-    }, 1500);
   }
 
   sendBtn.onclick = send;
