@@ -58,7 +58,15 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
         <p class="privacy-note">我们收集的个人信息（头像、个性签名、网名、用户ID、手机号、年龄、性别、出生日期、地区）仅用于完善你的个人资料与好友查找，不会向第三方披露。</p>
       </div>`;
 
-    body.innerHTML = hero + list + note;
+    const danger = `
+      <div class="list profile-list">
+        <div class="list-item tap delete-row" data-delete-account>
+          <div class="li-main"><div class="li-title">注销账号</div></div>
+          <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
+        </div>
+      </div>`;
+
+    body.innerHTML = hero + list + note + danger;
   }
 
   // 全屏查看原图
@@ -316,6 +324,38 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
     setTimeout(() => { input.focus(); input.select(); }, 150);
   }
 
+  /* 注销账号：二次确认 + 密码验证后删除云端账号，并清空本地数据退出登录 */
+  async function deleteAccount() {
+    const c1 = await UI.confirm("注销账号", "注销后将删除你的云端账号和本机全部数据，且无法恢复。确定继续吗？", { danger: true, okText: "继续" });
+    if (!c1) return;
+    const c2 = await UI.confirm("最后确认", `真的要永久注销账号「${u.nickname}」吗？此操作不可撤销。`, { danger: true, okText: "永久注销" });
+    if (!c2) return;
+
+    const pwd = await UI.promptInput({ title: "验证身份", placeholder: "请输入当前登录密码", type: "password", max: 64 });
+    if (pwd === null) return;
+    if (!pwd) { UI.toast("请先输入密码确认身份", "warn"); return; }
+
+    UI.toast("正在注销…", "info");
+    let cloudOk = false;
+    if (window.Cloud && Cloud.isConfigured() && typeof Cloud.deleteMe === "function") {
+      try {
+        const r = await Cloud.deleteMe(pwd);
+        cloudOk = !!(r && r.ok);
+      } catch (e) { /* 云端删除失败按未删除处理 */ }
+    }
+
+    // 无论云端是否删除成功，都清空本机数据并退出登录
+    if (window.CloudSync) { try { CloudSync.reset(); } catch (e) { /* ignore */ } }
+    try { await Store.factoryReset(); } catch (e) { /* ignore */ }
+
+    if (cloudOk) {
+      location.href = "login.html";
+    } else {
+      UI.toast("本机数据已清除；云端账号请发送邮件联系管理员删除", "warn", 4000);
+      setTimeout(() => { location.href = "login.html"; }, 1500);
+    }
+  }
+
   async function handleEdit(key) {
     if (key === "nickname") {
       const v = await UI.promptInput({ title: "修改网名", placeholder: "输入网名", value: u.nickname, max: 20 });
@@ -371,6 +411,8 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
       }
       return;
     }
+    const del = e.target.closest("[data-delete-account]");
+    if (del) { deleteAccount(); return; }
     const ed = e.target.closest("[data-edit]");
     if (ed) handleEdit(ed.dataset.edit);
   });
