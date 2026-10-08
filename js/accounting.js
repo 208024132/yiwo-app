@@ -1,4 +1,4 @@
-/* 记账页：按日查看与分类记一笔（近 7 天可切换） */
+/* 记账页：按日查看与分类记一笔（支持按月/按日翻看任意历史） */
 
 UserShell.boot({ tab: null, title: Store.getTitle("page.accounting"), back: "assets.html", hideTab: true });
 
@@ -10,25 +10,55 @@ UserShell.boot({ tab: null, title: Store.getTitle("page.accounting"), back: "ass
   const catsOf = t => Store.listCats(u.id, t === "in" ? "in" : "out");
   const catOf = (key, t) => Store.catInfo(u.id, key, t === "in" ? "in" : "out");
 
-  let dateOffset = 0; // -6 .. 0
+  // 光标日期：默认今天，可往前翻任意历史月份（不再限近 7 天）
+  const pad2 = n => (n < 10 ? "0" : "" + n);
+  const startOfDay = d => { const x = new Date(d); x.setHours(0, 0, 0, 0); return x; };
+  const today = startOfDay(new Date());
+  let cursor = startOfDay(new Date());
 
-  function curDate() { return UI.dayStr(dateOffset); }
+  function dstr(d) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+  function addDays(d, n) { const x = new Date(d); x.setDate(x.getDate() + n); return x; }
+  function addMonths(d, n) {
+    const x = new Date(d);
+    const day = x.getDate();
+    x.setDate(1);
+    x.setMonth(x.getMonth() + n);
+    const max = new Date(x.getFullYear(), x.getMonth() + 1, 0).getDate();
+    x.setDate(Math.min(day, max));
+    return x;
+  }
+  const isToday = d => dstr(d) === dstr(today);
+  function curDate() { return dstr(cursor); }
+  function monthLabel() { return `${cursor.getFullYear()}年${cursor.getMonth() + 1}月`; }
+  function dayLabel() {
+    if (isToday(cursor)) return "今天";
+    if (dstr(cursor) === dstr(addDays(today, -1))) return "昨天";
+    return `${cursor.getMonth() + 1}月${cursor.getDate()}日`;
+  }
 
   function render() {
     const date = curDate();
     const recs = Store.listRecords(u.id).filter(r => r.date === date);
     const outSum = recs.filter(r => r.type === "out").reduce((s, r) => s + r.amount, 0);
     const inSum = recs.filter(r => r.type === "in").reduce((s, r) => s + r.amount, 0);
-    const dateLabel = date === UI.dayStr(0) ? "今天" : date;
+    const thisMonth = cursor.getFullYear() === today.getFullYear() && cursor.getMonth() === today.getMonth();
 
     body.innerHTML = `
       <section class="date-bar card fade-in">
-        <button class="icon-btn date-arrow" data-step="-1" ${dateOffset <= -6 ? "disabled" : ""} aria-label="前一天">${UI.icon("chevron-left", 20)}</button>
-        <div class="date-mid">
-          <div class="date-txt bold">${UI.esc(dateLabel)}</div>
-          <div class="date-sum txt-xs txt-3">支出 ¥${outSum.toFixed(2)} · 收入 ¥${inSum.toFixed(2)}</div>
+        <div class="month-bar">
+          <button class="icon-btn date-arrow" data-month="-1" aria-label="上一月">${UI.icon("chevron-left", 20)}</button>
+          <button class="month-label bold" aria-label="当前月份">${UI.esc(monthLabel())}</button>
+          <button class="icon-btn date-arrow" data-month="1" ${thisMonth ? "disabled" : ""} aria-label="下一月">${UI.icon("chevron-right", 20)}</button>
+          <button class="btn ghost sm today-btn" data-today ${isToday(cursor) ? "disabled" : ""}>今天</button>
         </div>
-        <button class="icon-btn date-arrow" data-step="1" ${dateOffset >= 0 ? "disabled" : ""} aria-label="后一天">${UI.icon("chevron-right", 20)}</button>
+        <div class="day-bar">
+          <button class="icon-btn date-arrow" data-step="-1" aria-label="前一天">${UI.icon("chevron-left", 20)}</button>
+          <div class="date-mid">
+            <div class="date-txt bold">${UI.esc(dayLabel())}</div>
+            <div class="date-sum txt-xs txt-3">支出 ¥${outSum.toFixed(2)} · 收入 ¥${inSum.toFixed(2)}</div>
+          </div>
+          <button class="icon-btn date-arrow" data-step="1" ${isToday(cursor) ? "disabled" : ""} aria-label="后一天">${UI.icon("chevron-right", 20)}</button>
+        </div>
       </section>
 
       <section class="card fade-in mt-12">
@@ -50,13 +80,24 @@ UserShell.boot({ tab: null, title: Store.getTitle("page.accounting"), back: "ass
       </section>
     `;
 
-    body.querySelectorAll(".date-arrow").forEach(btn => {
+    body.querySelectorAll("[data-step]").forEach(btn => {
       btn.onclick = () => {
-        const step = Number(btn.dataset.step);
-        dateOffset = Math.max(-6, Math.min(0, dateOffset + step));
+        cursor = addDays(cursor, Number(btn.dataset.step));
+        if (cursor > today) cursor = new Date(today);   // 不越过今天
         render();
       };
     });
+
+    body.querySelectorAll("[data-month]").forEach(btn => {
+      btn.onclick = () => {
+        cursor = addMonths(cursor, Number(btn.dataset.month));
+        if (cursor > today) cursor = new Date(today);   // 下一月不越过今天
+        render();
+      };
+    });
+
+    const todayBtn = body.querySelector("[data-today]");
+    if (todayBtn) todayBtn.onclick = () => { cursor = new Date(today); render(); };
 
     body.querySelectorAll(".rec-del").forEach(btn => {
       btn.onclick = async () => {
