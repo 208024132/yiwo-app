@@ -6,8 +6,15 @@
 #accounting-body { padding-bottom: calc(120px + env(safe-area-inset-bottom, 0px)); }
 
 /* 日期切换条 */
-.date-bar { display: flex; align-items: center; gap: 6px; padding: 10px 12px; }
-.date-bar .date-mid { flex: 1; min-width: 0; text-align: center; }
+.date-bar { display: flex; flex-direction: column; gap: 8px; padding: 10px 12px; }
+.month-bar { display: flex; align-items: center; gap: 6px; }
+.month-label {
+  flex: 1; min-width: 0; text-align: center; font-size: 15px; font-weight: 700;
+  background: none; border: none; color: var(--text); padding: 4px 0; cursor: default;
+}
+.day-bar { display: flex; align-items: center; gap: 6px; }
+.day-bar .date-mid { flex: 1; min-width: 0; text-align: center; }
+.today-btn { flex-shrink: 0; }
 .date-bar .date-arrow:disabled { opacity: 0.3; cursor: default; }
 .date-txt { font-size: 16px; }
 .date-sum { margin-top: 2px; }
