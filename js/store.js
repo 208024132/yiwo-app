@@ -31,6 +31,9 @@ window.Store = (() => {
     d.setHours(h, m, 0, 0);
     return d.getTime();
   };
+  // 生成带随机后缀的短 ID（时间戳 base36 + 随机 4 位），避免同毫秒多次调用碰撞。
+  // 命名用 genId 而非 uid，避免与各业务函数里普遍使用的 `uid` 形参冲突。
+  const genId = (prefix = "") => prefix + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
 
   /* ---------- 存储常量 ---------- */
   const LS_KEY = "yiwo_db_v2";      // 老版本 localStorage 业务数据：仅在迁移时读取，迁移成功后删除
@@ -501,6 +504,31 @@ window.Store = (() => {
     bootSource = "seed";
   })();
 
+  // 自定义分类数据清洗：只保留安全字段，防恶意备份/下行数据注入超长或非字符串内容
+  function sanitizeCustomCats() {
+    const m = db.customCats;
+    if (!m || typeof m !== "object" || Array.isArray(m)) { db.customCats = {}; return; }
+    Object.keys(m).forEach(uid => {
+      const arr = Array.isArray(m[uid]) ? m[uid] : [];
+      const seen = {};
+      const out = [];
+      arr.forEach(c => {
+        if (!c || typeof c !== "object") return;
+        let key = (typeof c.key === "string" && c.key) ? c.key : genId("c");
+        if (seen[key]) key = genId("c");
+        seen[key] = 1;
+        out.push({
+          key,
+          name: String(c.name == null ? "" : c.name).trim().slice(0, 20) || "未命名分类",
+          e: String(c.e == null ? "" : c.e).trim().slice(0, 16) || "🏷️",
+          type: c.type === "in" ? "in" : "out",
+          custom: true,
+        });
+      });
+      m[uid] = out;
+    });
+  }
+
   /* 旧数据补齐新增字段（老数据 / 导入备份 / 异步接管后都会调用） */
   function normalizeDb() {
     // 账号体系重构：密码只存云端（CloudBase auth），本地用户档案不再保留明文密码。
@@ -512,6 +540,7 @@ window.Store = (() => {
     if (!db.wallets) { db.wallets = seedWallets(); dirty = true; }
     if (!db.debts) { db.debts = seedDebts(); dirty = true; }
     if (!db.customCats) { db.customCats = {}; dirty = true; }
+    sanitizeCustomCats();
     if (!db.catOrder) { db.catOrder = {}; dirty = true; }
     if (!db.socialMeta) { db.socialMeta = {}; dirty = true; }
     if (ensureSettings()) dirty = true;
@@ -741,7 +770,8 @@ window.Store = (() => {
     account = String(account || "").trim();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(account)) return { ok: false, msg: "请输入正确的邮箱地址（如 name@example.com）" };
     if (db.users.some(u => u.account === account)) return { ok: false, msg: "该邮箱已注册" };
-    const id = "u" + Date.now().toString().slice(-8);
+    let id = genId("u");
+    while (db.users.some(x => x.id === id)) id = genId("u");
     // 账号体系重构：密码只交给云端（CloudBase auth），本地档案不再写入 password 字段。
     const user = {
       id, account, nickname: nickname || account.split("@")[0], avatarEmoji: "🙂",
@@ -1003,7 +1033,7 @@ window.Store = (() => {
     persist();
   }
   function sendMessage(uid, fid, text) {
-    const msg = { id: "m" + Date.now(), from: uid, text, t: Date.now(), read: true };
+    const msg = { id: genId("m"), from: uid, text, t: Date.now(), read: false };
     let c = db.chats.find(x => (x.a === uid && x.b === fid) || (x.a === fid && x.b === uid));
     if (!c) { c = { a: uid, b: fid, msgs: [] }; db.chats.push(c); }
     c.msgs.push(msg);
@@ -1059,7 +1089,7 @@ window.Store = (() => {
   function repost(mid, uid) {
     const orig = db.moments.find(x => x.id === mid);
     if (!orig) return;
-    const rid = "p" + Date.now();
+    const rid = genId("p");
     db.moments.push({
       id: rid, uid, type: "repost", text: "",
       photos: [], orig: { id: orig.id, uid: orig.uid },
@@ -1073,7 +1103,7 @@ window.Store = (() => {
   }
   function addMoment(uid, { text, photos = [], privacy } = {}) {
     const m = {
-      id: "p" + Date.now(), uid, type: photos.length ? "photo" : "text", text,
+      id: genId("p"), uid, type: photos.length ? "photo" : "text", text,
       photos, privacy: privacy || getUser(uid).privacyDefault || "friends",
       likes: [], comments: [], reposts: 0, t: Date.now(),
     };
@@ -1135,7 +1165,7 @@ window.Store = (() => {
   }
   function addDebt(uid, { name, amount = 0 }) {
     const d = {
-      id: "d" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
+      id: genId("d"),
       name: String(name || "").trim() || "新负债",
       amount: Number(amount) || 0, t: Date.now(),
     };
@@ -1167,7 +1197,7 @@ window.Store = (() => {
   }
   function addWallet(uid, { name, type = "bank", liquid = true, balance = 0 }) {
     const acc = {
-      id: "w" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
+      id: genId("w"),
       name: String(name || "").trim() || "新账户",
       type, liquid: !!liquid, balance: Number(balance) || 0, t: Date.now(),
     };
@@ -1218,7 +1248,7 @@ window.Store = (() => {
   }
   function addRecord(uid, { type, cat, amount, note = "", date, accId = null, debtId = null }) {
     const amt = Number(amount);
-    const rec = { id: "a" + Date.now(), type, cat, amount: amt, note, date, accId: accId || null, debtId: debtId || null, t: Date.now() };
+    const rec = { id: genId("a"), type, cat, amount: amt, note, date, accId: accId || null, debtId: debtId || null, t: Date.now() };
     if (!db.accounts[uid]) db.accounts[uid] = [];
     db.accounts[uid].push(rec);
     applyRecord(uid, rec, 1);
@@ -1313,7 +1343,7 @@ window.Store = (() => {
     if (listCats(uid, type).some(c => c.name === name)) return { ok: false, msg: "该分类已存在" };
     if (!db.customCats) db.customCats = {};
     if (!db.customCats[uid]) db.customCats[uid] = [];
-    const cat = { key: "c" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), name, e: e || "🏷️", type, custom: true };
+    const cat = { key: genId("c"), name, e: e || "🏷️", type, custom: true };
     db.customCats[uid].push(cat);
     persist();
     return { ok: true, cat };
@@ -1381,7 +1411,7 @@ window.Store = (() => {
       const i = db.memos[uid].findIndex(m => m.id === memo.id);
       if (i >= 0) { db.memos[uid][i] = Object.assign(db.memos[uid][i], memo, { t: Date.now() }); persist(); return db.memos[uid][i]; }
     }
-    const m = { id: "mm" + Date.now(), text: memo.text, tag: memo.tag || "", pin: !!memo.pin, t: Date.now() };
+    const m = { id: genId("mm"), text: memo.text, tag: memo.tag || "", pin: !!memo.pin, t: Date.now() };
     db.memos[uid].push(m);
     persist();
     return m;
@@ -1455,7 +1485,7 @@ window.Store = (() => {
       const i = db.tasks[uid].findIndex(x => x.id === task.id);
       if (i >= 0) { db.tasks[uid][i] = Object.assign(db.tasks[uid][i], task); persist(); return db.tasks[uid][i]; }
     }
-    const t = { id: "t" + Date.now(), title: task.title, tag: task.tag || "", pct: task.pct || 0, status: task.status || "todo", t: Date.now() };
+    const t = { id: genId("t"), title: task.title, tag: task.tag || "", pct: task.pct || 0, status: task.status || "todo", t: Date.now() };
     db.tasks[uid].push(t);
     persist();
     return t;
@@ -1602,6 +1632,7 @@ window.Store = (() => {
     // 避免导入后后台因无密码而无法登录；新设备本机无管理员时回退到备份里的管理员骨架并强制改密。
     const localAdmins = Array.isArray(db.admins) ? db.admins.slice() : [];
     db = next;
+    sanitizeCustomCats();
     if (localAdmins.length) {
       db.admins = localAdmins;
     } else if (Array.isArray(db.admins)) {
@@ -1659,7 +1690,7 @@ window.Store = (() => {
 
   /* ---------- 好友分组 ---------- */
   const DEFAULT_GROUPS = ["家人", "朋友", "同事", "同学", "特别关心"];
-  function newGid() { return "g" + Date.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36); }
+  function newGid() { return genId("g"); }
   function ensureGroups(uid) {
     if (!db.groups) db.groups = {};
     let list = db.groups[uid];
@@ -1697,7 +1728,7 @@ window.Store = (() => {
   // 默认分组：优先「朋友」，被删/改名后回退到第一个分组
   function defaultGroupId(list) {
     const g = list.find(x => x.name === "朋友") || list[0];
-    return g.id;
+    return g ? g.id : "";
   }
   // 未指定分组的好友默认归入「朋友」
   function groupOf(uid, fid) {
@@ -1725,7 +1756,7 @@ window.Store = (() => {
     let moved = 0;
     Object.keys(map).forEach(fid => { if (map[fid] === gid) { map[fid] = fallback; moved++; } });
     persist();
-    return { ok: true, name, moved, to: list.find(g => g.id === fallback).name };
+    return { ok: true, name, moved, to: (list.find(g => g.id === fallback) || {}).name || "" };
   }
 
   /* ---------- 好友备注 ---------- */
@@ -1828,7 +1859,7 @@ window.Store = (() => {
     if (pwd.length < 6) return { ok: false, msg: "密码至少 6 位" };
     if (db.admins.some(a => a.account === account)) return { ok: false, msg: "该账号已存在" };
     const a = {
-      id: "ad" + Date.now(), account, password: await hashAdminPassword(pwd), name, phone, dept, idcard,
+      id: genId("ad"), account, password: await hashAdminPassword(pwd), name, phone, dept, idcard,
       perms, role: perms.includes("admins") ? "超级管理员" : "普通管理员", t: Date.now(),
     };
     db.admins.push(a);
