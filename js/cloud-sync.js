@@ -11,7 +11,7 @@ window.CloudSync = (() => {
   const LINK_KEY = "yiwo_cloud_uid";     // 本机已链接的云端 uid
   const SYNC_KEY = "yiwo_cloud_sync_at"; // 最近一次与云端对齐的时间戳（LWW 基准）
   const DEBOUNCE = 300;                  // 本地改动合并上行延迟（原 800，用户反馈同步慢，调快）
-  const POLL_MS = 30000;                 // 后台轮询下拉间隔：有网络变化时实时感知另一端改动
+  const POLL_MS = 3000;                  // 后台轮询下拉间隔：3 秒，接近实时感知另一端改动（用户要求更快）
 
   // 以 uid 为键的个人数据集合（P1 同步范围）
   const KV_KEYS = ["accounts", "wallets", "debts", "customCats", "catOrder", "order",
@@ -876,7 +876,7 @@ window.CloudSync = (() => {
       link(uid);
       await adopt(null, uid, social);
       const ok = await pushAll(true);
-      if (!ok) setStatus("error", "首次上传失败，请稍后点「立即同步」重试");
+      if (!ok) setStatus("error", "首次上传失败，将自动重试");
       await fillFriendProfiles();   // 批量补好友档案（pushAll 已非阻塞发布本人档案）
       return { ok: true, adopted: false };
     } catch (e) {
