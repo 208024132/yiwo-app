@@ -55,7 +55,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
 
     const note = `
       <div class="card privacy-note-card">
-        <p class="privacy-note">我们收集的个人信息（头像、个性签名、网名、用户ID、手机号、年龄、性别、出生日期、地区）仅用于完善你的个人资料与好友查找，不会向第三方披露。</p>
+        <p class="privacy-note">我们收集的个人信息（头像、个性签名、网名、用户ID、手机号、年龄、性别、出生日期、地区）仅用于完善你的个人资料与好友查找，不会向第三方披露。未开启云同步时，数据仅保存在本机浏览器；开启多设备同步后以云端为准。</p>
       </div>`;
 
     const danger = `
@@ -193,7 +193,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
     const s = UI.sheet(`
       <div class="sheet-head"><h3>年龄</h3>
         <button class="icon-btn" data-x>${UI.icon("close", 18)}</button></div>
-      <input type="number" min="18" max="80" class="input" data-n value="${u.age || ""}" placeholder="18-80">
+      <input type="number" min="1" max="120" class="input" data-n value="${u.age || ""}" placeholder="1-120">
       <div class="sheet-actions">
         <button class="btn ghost" data-no>取消</button>
         <button class="btn primary" data-ok>保存</button>
@@ -203,7 +203,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.pro
       const raw = s.el.querySelector("[data-n]").value.trim();
       if (!raw) { Store.updateProfile(u.id, { age: 0 }); s.close(); UI.toast("已保存", "success"); render(); return; }
       const n = Number(raw);
-      if (n < 18 || n > 80) { UI.toast("年龄需在 18-80 之间", "warn"); return; }
+      if (n < 1 || n > 120) { UI.toast("年龄需在 1-120 之间", "warn"); return; }
       Store.updateProfile(u.id, { age: n });
       s.close();
       UI.toast("已保存", "success");
