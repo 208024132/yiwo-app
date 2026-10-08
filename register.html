@@ -19,8 +19,8 @@
         <div class="field-err" id="err-nickname"></div>
       </div>
       <div class="field">
-        <label for="account">QQ邮箱</label>
-        <input class="input" id="account" type="text" placeholder="xxx@qq.com" autocomplete="email">
+        <label for="account">邮箱</label>
+        <input class="input" id="account" type="text" placeholder="name@example.com" autocomplete="email">
         <div class="field-err" id="err-account"></div>
       </div>
       <div class="field">
@@ -42,10 +42,13 @@
         <div class="field-err" id="err-confirm"></div>
       </div>
 
-      <label class="agree-row" for="agree">
+      <div class="agree-row">
         <input type="checkbox" id="agree">
-        <span>我已阅读并同意<a href="javascript:;">《用户协议》</a>与<a href="javascript:;">《隐私政策》</a></span>
-      </label>
+        <label for="agree" class="agree-text">我已阅读并同意</label>
+        <a href="terms.html" target="_blank" rel="noopener">《用户协议》</a>
+        <span class="agree-and">与</span>
+        <a href="privacy.html" target="_blank" rel="noopener">《隐私政策》</a>
+      </div>
       <div class="agree-note">注册即代表同意我们收集：头像、个性签名、网名、用户ID、手机号、年龄、性别、出生日期、地区，详见隐私政策。</div>
 
       <button class="btn primary block mt-16" id="register-btn">注册</button>
