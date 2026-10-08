@@ -16,6 +16,12 @@ window.AdminShell = (() => {
     const admin = Store.currentAdmin();
     if (!admin) { location.replace("index.html"); return null; }
 
+    // 首次登录强制改密：未改密前只能停留在「我的」页，其余后台页面一律跳回「我的」
+    if (admin.mustChangePwd && menu !== "my") {
+      location.replace("my.html");
+      return null;
+    }
+
     // 路由守卫：当前页面所需权限若当前管理员没有，退回数据总览（防止直接输入网址越权）
     const cur = MENUS.find(m => m.key === menu);
     if (cur && cur.perm && !Store.hasPerm(admin, cur.perm)) {
