@@ -747,9 +747,17 @@ window.CloudSync = (() => {
     }
   }
 
-  /* ---------- 立即同步（LWW：云端更新则下行，否则上行） ---------- */
+  /* ---------- 立即同步（LWW：云端更新则下行，否则上行） ----------
+     P2-9：轮询(30s)/focus/手动触发可能并发触发，加互斥——执行期间重复调用复用同一 Promise。 */
+  let syncPromise = null;
   async function syncNow() {
     if (!isLinked() || !Cloud.isConfigured()) return false;
+    if (syncPromise) return syncPromise;
+    syncPromise = doSync().finally(() => { syncPromise = null; });
+    return syncPromise;
+  }
+
+  async function doSync() {
     setStatus("syncing");
     await whenStoreReady();
     let remote = null;
