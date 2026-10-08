@@ -64,12 +64,18 @@ window.UserShell = (() => {
     const tabs = tabDefs();
     const modules = sideModules();
 
+    // 未读好友申请 + 未读消息（顶栏铃铛红点与好友 Tab 徽标共用）
+    const pending = Store.pendingRequests(u.id).length;
+    const unreadMsgs = Store.getConversations(u.id).reduce((s, c) => s + (c.unread || 0), 0);
+    const friendsBadge = pending + unreadMsgs;
+
     const headBack = back !== null
       ? `<button class="head-back" data-back aria-label="返回">${UI.icon("chevron-left", 20)}</button>`
       : "";
-    const headRight = right === "avatar"
-      ? `<a href="my.html" class="head-side" aria-label="我的">${UI.avatarEl(u, "sm")}</a>`
-      : "";
+    const headBell = `<a href="notifications.html" class="head-bell" aria-label="通知">${UI.icon("bell", 20)}${friendsBadge > 0 ? `<span class="head-bell-dot"></span>` : ""}</a>`;
+    const headRight = `<div class="head-side">${headBell}${right === "avatar"
+      ? `<a href="my.html" aria-label="我的">${UI.avatarEl(u, "sm")}</a>`
+      : ""}</div>`;
     const header = document.createElement("header");
     header.className = "app-header";
     header.innerHTML = `${headBack}
@@ -78,11 +84,6 @@ window.UserShell = (() => {
 
     const backBtn = header.querySelector("[data-back]");
     if (backBtn) backBtn.onclick = () => { back ? (location.href = back) : history.length > 1 ? history.back() : (location.href = "index.html"); };
-
-    // 未读好友申请徽标 + 未读消息红点
-    const pending = Store.pendingRequests(u.id).length;
-    const unreadMsgs = Store.getConversations(u.id).reduce((s, c) => s + (c.unread || 0), 0);
-    const friendsBadge = pending + unreadMsgs;
 
     // 底部 Tab（移动端；桌面端由 CSS 隐藏）
     let tabbar = null;
