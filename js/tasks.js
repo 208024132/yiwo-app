@@ -33,7 +33,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.tas
     const list = Store.listTasks(u.id);
     body.innerHTML = `<div class="task-list">${list.length
       ? list.map(taskCard).join("")
-      : `<div class="card">${UI.emptyBox("🎯", "暂无任务", "添加任务，让目标清晰可见")}</div>`
+      : `<div class="card">${UI.emptyBox("🎯", "还没有任务", "点击右下角 + 新建第一个任务，让目标清晰可见")}</div>`
     }</div>`;
   }
 
