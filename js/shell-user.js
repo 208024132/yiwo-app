@@ -79,8 +79,10 @@ window.UserShell = (() => {
     const backBtn = header.querySelector("[data-back]");
     if (backBtn) backBtn.onclick = () => { back ? (location.href = back) : history.length > 1 ? history.back() : (location.href = "index.html"); };
 
-    // 未读好友申请徽标
+    // 未读好友申请徽标 + 未读消息红点
     const pending = Store.pendingRequests(u.id).length;
+    const unreadMsgs = Store.getConversations(u.id).reduce((s, c) => s + (c.unread || 0), 0);
+    const friendsBadge = pending + unreadMsgs;
 
     // 底部 Tab（移动端；桌面端由 CSS 隐藏）
     let tabbar = null;
@@ -90,7 +92,7 @@ window.UserShell = (() => {
       tabbar.innerHTML = tabs.map(t => `
         <a class="tab ${tab === t.key ? "on" : ""}" href="${t.href}">
           <span class="tab-icon">${UI.icon(t.icon, 22)}</span>${UI.esc(t.label)}
-          ${t.key === "friends" && pending > 0 ? `<span class="tab-badge">${pending}</span>` : ""}
+          ${t.key === "friends" && friendsBadge > 0 ? `<span class="tab-badge">${friendsBadge}</span>` : ""}
         </a>`).join("");
       document.body.appendChild(tabbar);
     } else {
@@ -115,7 +117,7 @@ window.UserShell = (() => {
           ${tabs.map(t => `
             <a class="sn-item ${tab === t.key ? "on" : ""}" href="${t.href}">
               <span class="sn-ico">${UI.icon(t.icon, 20)}</span>${UI.esc(t.label)}
-              ${t.key === "friends" && pending > 0 ? `<span class="sn-badge">${pending}</span>` : ""}
+              ${t.key === "friends" && friendsBadge > 0 ? `<span class="sn-badge">${friendsBadge}</span>` : ""}
             </a>`).join("")}
         </nav>
         <div class="sn-group">功能</div>
