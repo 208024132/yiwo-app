@@ -42,9 +42,12 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
     let last = 0;
     try { last = Store.getLastBackupAt() || 0; } catch (e) { last = 0; }
     if (!last) return "建议定期备份，防止数据丢失";
-    const days = Math.ceil((Date.now() - last) / 86400000);
-    if (days > 7) return `上次备份 ${days} 天前，建议备份`;
-    if (days <= 0) return "今天备份过";
+    // 按「日历日」计算：今天 0 点以来算今天，避免 Math.ceil 对过去时间戳恒 >=1 导致「今天备份过」永远走不到
+    const now = new Date();
+    const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    if (last >= startToday) return "今天备份过";
+    const days = Math.floor((startToday - last) / 86400000);
+    if (days >= 7) return `上次备份 ${days} 天前，建议备份`;
     return `上次备份 ${days} 天前`;
   }
 
