@@ -429,7 +429,7 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
       if (catWrap) catWrap.style.display = isRepay ? "none" : "";
       if (itemWrap) itemWrap.style.display = isRepay ? "none" : "";
       if (debtWrap) debtWrap.style.display = isRepay ? "" : "none";
-      saveBtn.textContent = isRepay ? "还债" : "记账";
+      saveBtn.innerHTML = isRepay ? "还债" : `${UI.icon("plus", 16)} 记一笔`;
       if (isRepay) {
         if (acc && !acc.value && wallets[0]) acc.value = wallets[0].id; // 还债必须选付款账户
         if (debt && debts.length) amt.placeholder = debts[0].amount.toFixed(2);
@@ -518,7 +518,7 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
       <section class="asset-card fade-in" id="asset-card"></section>
 
       <section class="card qe-card fade-in" id="quick-entry">
-        <div class="qe-title">⚡ 快速记一笔</div>
+        <div class="qe-title">记一笔</div>
         <div class="seg seg-qe">
           <button type="button" data-type="out" class="${qeType === "out" ? "on" : ""}">支出</button>
           <button type="button" data-type="in" class="${qeType === "in" ? "on" : ""}">收入</button>
@@ -539,7 +539,7 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
             <span class="qe-yen">¥</span>
             <input class="qe-input" type="number" step="0.01" inputmode="decimal" placeholder="0.00" data-qe-amt aria-label="金额">
           </div>
-          <button class="btn primary qe-save" type="button" data-qe-save>记账</button>
+          <button class="btn primary qe-save" type="button" data-qe-save>${UI.icon("plus", 16)} 记一笔</button>
         </div>
         ${wallets.length ? `
         <select class="input qe-acc" data-qe-acc aria-label="关联账户">
@@ -572,7 +572,7 @@ UserShell.boot({ tab: "assets", title: Store.getTitle("page.assets") });
             </div>
             <span class="rec-amt ${isIn ? "in" : "out"} num">${isIn ? "+" : "-"}${UI.fmtMoney(r.amount)}</span>
           </div>`;
-        }).join("") : UI.emptyBox("💸", "还没有记账", "用上方「快速记一笔」开始记录")}
+        }).join("") : UI.emptyBox("💸", "还没有记账", "用上方「记一笔」开始记录")}
       </section>
 
       <button class="btn primary block mt-16 fade-in" id="go-accounting">详细记账</button>
