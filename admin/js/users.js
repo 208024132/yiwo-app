@@ -3,15 +3,50 @@ if (S) (function(){
 Theme.apply(Theme.current());
 
 let q = "", gender = "", region = "";
+let page = 1;
+const PER_PAGE = 20;
 
 function todayNew() {
   const today = new Date().setHours(0, 0, 0, 0);
   return Store.listUsers().filter(u => u.regTime >= today).length;
 }
 
+function pageNums(page, pages) {
+  if (pages <= 1) return [1];
+  const set = new Set([1, pages, page - 1, page, page + 1]);
+  const arr = [...set].filter(n => n >= 1 && n <= pages).sort((a, b) => a - b);
+  const out = [];
+  let prev = 0;
+  arr.forEach(n => {
+    if (prev && n - prev > 1) out.push("…");
+    out.push(n);
+    prev = n;
+  });
+  return out;
+}
+
+function pagerBar(page, pages, filtered) {
+  const total = `<span class="pg-total">共 ${filtered} 名用户 · 第 ${page}/${pages} 页</span>`;
+  if (pages <= 1) return `<div class="pagination">${total}</div>`;
+  const nums = pageNums(page, pages).map(n => n === "…"
+    ? `<span class="pg-ellipsis">…</span>`
+    : `<button class="pg-btn${n === page ? " on" : ""}" data-page="${n}">${n}</button>`).join("");
+  return `<div class="pagination">
+    <button class="pg-btn" data-page="${page - 1}" ${page <= 1 ? "disabled" : ""}>上一页</button>
+    ${nums}
+    <button class="pg-btn" data-page="${page + 1}" ${page >= pages ? "disabled" : ""}>下一页</button>
+    ${total}
+  </div>`;
+}
+
 function render() {
   const list = Store.filterUsers({ q, gender, region });
   const total = Store.listUsers().length;
+  const filtered = list.length;
+  const pages = Math.max(1, Math.ceil(filtered / PER_PAGE));
+  if (page > pages) page = pages;
+  if (page < 1) page = 1;
+  const pageList = list.slice((page - 1) * PER_PAGE, page * PER_PAGE);
   const genderOpts = [["", "全部性别"], ["男", "男"], ["女", "女"], ["保密", "保密"]];
   const regionOpts = [["", "全部地区"], ...Store.PROVINCES.map(p => [p.n, p.n])];
 
@@ -43,13 +78,14 @@ function render() {
     </div>
 
     <div class="table-wrap">
+      ${filtered ? pagerBar(page, pages, filtered) : ""}
       ${list.length ? `
       <table class="table">
         <thead><tr>
           <th>用户</th><th>网名·签名</th><th>手机号</th><th>性别</th><th>年龄</th><th>地区</th><th>注册时间</th><th>操作</th>
         </tr></thead>
         <tbody>
-          ${list.map(u => `
+          ${pageList.map(u => `
             <tr>
               <td>
                 <div class="flex items-center gap-10">
@@ -75,17 +111,22 @@ function render() {
             </tr>`).join("")}
         </tbody>
       </table>` : UI.emptyBox("🔍", "没有匹配的用户", "试试调整关键词或筛选条件")}
+      ${filtered ? pagerBar(page, pages, filtered) : ""}
     </div>`;
 
   const qInput = S.content.querySelector("#f-q");
-  if (qInput) qInput.addEventListener("input", UI.debounce(e => { q = e.target.value.trim(); render(); }, 300));
+  if (qInput) qInput.addEventListener("input", UI.debounce(e => { q = e.target.value.trim(); page = 1; render(); }, 300));
   const gSel = S.content.querySelector("#f-gender");
-  if (gSel) gSel.addEventListener("change", e => { gender = e.target.value; render(); });
+  if (gSel) gSel.addEventListener("change", e => { gender = e.target.value; page = 1; render(); });
   const rSel = S.content.querySelector("#f-region");
-  if (rSel) rSel.addEventListener("change", e => { region = e.target.value; render(); });
+  if (rSel) rSel.addEventListener("change", e => { region = e.target.value; page = 1; render(); });
   const clear = S.content.querySelector("#f-clear");
-  if (clear) clear.addEventListener("click", () => { q = ""; gender = ""; region = ""; render(); });
+  if (clear) clear.addEventListener("click", () => { q = ""; gender = ""; region = ""; page = 1; render(); });
   S.content.querySelectorAll("[data-view]").forEach(btn => btn.addEventListener("click", () => openUser(btn.dataset.view)));
+  S.content.querySelectorAll(".pagination [data-page]").forEach(btn => btn.addEventListener("click", () => {
+    page = Number(btn.dataset.page);
+    render();
+  }));
 }
 
 function infoRow(label, value) {
