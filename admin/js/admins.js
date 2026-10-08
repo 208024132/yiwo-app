@@ -78,7 +78,7 @@ function openAdd() {
     <div class="sheet-head"><h3>添加管理员</h3><button class="icon-btn" data-close>${UI.icon("close", 18)}</button></div>
     <div class="field"><label>姓名</label><input class="input" id="a-name" placeholder="姓名"></div>
     <div class="field"><label>账号</label><input class="input" id="a-account" placeholder="登录账号"></div>
-    <div class="field"><label>密码</label><input class="input" id="a-password" type="password" placeholder="登录密码"></div>
+    <div class="field"><label>密码</label><input class="input" id="a-password" type="password" placeholder="至少 6 位"></div>
     <div class="field"><label>手机号</label><input class="input" id="a-phone" placeholder="手机号"></div>
     <div class="field"><label>部门</label><input class="input" id="a-dept" placeholder="部门"></div>
     <div class="field"><label>身份证号</label><input class="input" id="a-idcard" placeholder="身份证号"></div>
@@ -90,7 +90,7 @@ function openAdd() {
 
   s.el.querySelector("[data-close]").onclick = () => s.close();
   s.el.querySelector("[data-cancel]").onclick = () => s.close();
-  s.el.querySelector("[data-ok]").onclick = () => {
+  s.el.querySelector("[data-ok]").onclick = async () => {
     const field = id => s.el.querySelector(id).value.trim();
     const name = field("#a-name");
     const account = field("#a-account");
@@ -103,7 +103,7 @@ function openAdd() {
       idcard: field("#a-idcard"),
       perms: [...s.el.querySelectorAll("[data-perm]:checked")].map(i => i.dataset.perm),
     };
-    const r = Store.addAdmin(data);
+    const r = await Store.addAdmin(data);
     if (!r.ok) { UI.toast(r.msg, "error"); return; }
     UI.toast("管理员已添加", "success");
     s.close();
@@ -162,3 +162,4 @@ function openEdit(id) {
 }
 
 render();})();
+
