@@ -68,7 +68,7 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
       <span class="icon-btn uc-edit">${UI.icon("edit", 20)}</span>
     </a>
 
-    <!-- 多设备同步卡片已按产品要求隐藏；云同步仍在后台自动运行（shell-user.js boot → CloudSync.boot） -->
+    <section class="card sync-card fade-in mt-16" id="sync-card"></section>
 
     <div class="sort-tip mt-16">
       ${UI.icon("info", 14)}<span class="txt-xs txt-3">长按拖动图标可调整功能顺序</span>
@@ -229,7 +229,7 @@ function bindList() {
         </div>
         <div class="about-rows">
           <p class="txt-sm txt-2">基于思维导图「以我 APP」设计</p>
-          <p class="txt-sm txt-2">数据保存在本机，可在「数据备份」中导出</p>
+          <p class="txt-sm txt-2">已开启云同步时以云端为准，本机备份仅作本地兜底</p>
         </div>`);
       s.el.querySelector("[data-close]").onclick = s.close;
     };
@@ -252,7 +252,7 @@ function bindList() {
 function openBackup() {
   const s = UI.sheet(`
     <div class="sheet-head"><h3>数据备份</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
-    <p class="backup-tip">数据保存在本机浏览器中，清理缓存或更换设备会丢失。建议定期导出备份文件保存到别处。</p>
+    <p class="backup-tip">已开启「多设备同步」时，数据以云端为准，本机备份文件仅作本地兜底；未开启同步时，建议定期导出备份文件以防丢失。</p>
     <div class="backup-actions">
       <button class="btn primary block" data-export>导出备份文件</button>
       <button class="btn ghost block" data-import>导入备份文件</button>
@@ -352,7 +352,7 @@ function openCloudInfo() {
     <div class="sheet-head"><h3>多设备同步</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
     <div class="about-rows">
       <p class="txt-sm txt-2">当前还没有配置云端环境，数据只保存在本机浏览器里，换手机或换电脑就看不到。</p>
-      <p class="txt-sm txt-2">部署云环境后，把「环境 ID」填入 js/cloud.js 的 ENV_ID，这里就会出现「开启」按钮——用同一个 QQ 邮箱即可跨设备登录并同步。</p>
+      <p class="txt-sm txt-2">部署云环境后，把「环境 ID」填入 js/cloud.js 的 ENV_ID，这里就会出现「开启」按钮——用同一个邮箱即可跨设备登录并同步。</p>
     </div>`);
   s.el.querySelector("[data-close]").onclick = s.close;
 }
@@ -361,8 +361,8 @@ function openEnableSync() {
   const u = Store.currentUser();
   const s = UI.sheet(`
     <div class="sheet-head"><h3>开启多设备同步</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
-    <p class="txt-sm txt-2 sc-tip">开启后，用同一个 QQ 邮箱在手机或电脑登录即可看到这份数据。当前本机账号会与云端账号绑定。</p>
-    <div class="field"><label for="cs-email">QQ邮箱</label><input class="input" id="cs-email" type="text" value="${UI.esc(u.account || "")}" placeholder="xxx@qq.com"></div>
+    <p class="txt-sm txt-2 sc-tip">开启后，用同一个邮箱在手机或电脑登录即可看到这份数据。当前本机账号会与云端账号绑定。</p>
+    <div class="field"><label for="cs-email">邮箱</label><input class="input" id="cs-email" type="text" value="${UI.esc(u.account || "")}" placeholder="name@example.com"></div>
     <div class="field"><label for="cs-pwd">密码</label><input class="input" id="cs-pwd" type="password" placeholder="设置云端账号密码"></div>
     <div class="field"><label for="cs-code">邮箱验证码</label>
       <div class="input-group"><input class="input" id="cs-code" type="text" maxlength="6" inputmode="numeric" placeholder="6 位数字"><button class="btn ghost sm" id="cs-send">发送验证码</button></div>
@@ -377,13 +377,13 @@ function openEnableSync() {
   const errEl = s.el.querySelector("#cs-err");
   const sendBtn = s.el.querySelector("#cs-send");
   const okBtn = s.el.querySelector("#cs-ok");
-  const emailRe = /^[a-zA-Z0-9._%+-]+@qq\.com$/;
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
   let codeSent = false;
 
   sendBtn.onclick = async () => {
     const email = emailEl.value.trim();
-    if (!emailRe.test(email)) { errEl.textContent = "请填写 QQ 邮箱（xxx@qq.com）"; return; }
+    if (!emailRe.test(email)) { errEl.textContent = "请填写正确的邮箱地址（如 name@example.com）"; return; }
     if (!pwdEl.value) { errEl.textContent = "请先填写云端账号密码"; return; }
     errEl.textContent = "";
     sendBtn.disabled = true; sendBtn.textContent = "发送中…";
@@ -397,14 +397,14 @@ function openEnableSync() {
       if (n <= 0) { clearInterval(t); sendBtn.disabled = false; sendBtn.textContent = "发送验证码"; }
       else sendBtn.textContent = n + "s";
     }, 1000);
-    UI.toast("验证码已发送至你的 QQ 邮箱", "success");
+    UI.toast("验证码已发送至你的邮箱", "success");
   };
 
   okBtn.onclick = async () => {
     const email = emailEl.value.trim();
     const pwd = pwdEl.value;
     const code = codeEl.value.trim();
-    if (!emailRe.test(email)) { errEl.textContent = "请填写 QQ 邮箱（xxx@qq.com）"; return; }
+    if (!emailRe.test(email)) { errEl.textContent = "请填写正确的邮箱地址（如 name@example.com）"; return; }
     if (!pwd) { errEl.textContent = "请输入云端账号密码"; return; }
     errEl.textContent = "";
     okBtn.disabled = true; okBtn.textContent = "处理中…";
