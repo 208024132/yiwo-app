@@ -321,10 +321,11 @@ window.UI = (() => {
   function uid() {
     return Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   }
-  function emptyBox(emoji = "🍃", title = "这里空空如也", sub = "") {
+  function emptyBox(emoji = "🍃", title = "这里空空如也", sub = "", action = null) {
     return `<div class="empty"><div class="empty-icon">${emoji}</div>
       <div class="empty-title">${esc(title)}</div>
-      ${sub ? `<div class="empty-sub">${esc(sub)}</div>` : ""}</div>`;
+      ${sub ? `<div class="empty-sub">${esc(sub)}</div>` : ""}
+      ${action ? `<a class="empty-act" href="${esc(action.href)}">${esc(action.text)}</a>` : ""}</div>`;
   }
   function debounce(fn, wait = 300) {
     let t;
