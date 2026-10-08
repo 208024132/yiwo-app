@@ -578,7 +578,7 @@ UserShell.boot({ tab: "friends", title: Store.getTitle("page.friends"), right: n
     if (tabBtn) { tab = tabBtn.dataset.tab; render(); return; }
 
     const chatItem = e.target.closest("[data-chat]");
-    if (chatItem) { location.href = "chat.html?id=" + chatItem.dataset.chat; return; }
+    if (chatItem) { location.href = "chat.html?id=" + encodeURIComponent(chatItem.dataset.chat); return; }
 
     const act = e.target.closest("[data-act]");
     if (act) {
