@@ -211,6 +211,40 @@ window.Cloud = (() => {
     try { await auth.signOut(); } catch (e) { /* 忽略退出失败 */ }
   }
 
+  /* ---------- 注销当前账号（敏感操作，需二次认证） ----------
+     CloudBase v3 身份认证支持删除当前账号（HTTP DELETE /auth/v1/user/me），
+     Web SDK 侧方法名因版本略有差异，这里做防御式探测：
+     1) 优先 auth.deleteUser({ password })（部分版本直接支持）；
+     2) 其次 auth.sudo({ password }) 获取 sudo_token 后调用 auth.deleteMe({ sudo_token })；
+     3) 均不支持时返回 notSupported，由调用方降级为「清空本地 + 提示联系管理员」。 */
+  async function deleteMe(password) {
+    if (!isConfigured()) return { ok: false, msg: "云端服务未启用" };
+    if (!(await ensureInit())) return { ok: false, msg: "云端连接失败，请检查网络后重试" };
+    const pwd = String(password || "");
+    try {
+      if (typeof auth.deleteUser === "function") {
+        const { error } = await auth.deleteUser({ password: pwd });
+        if (error) return { ok: false, msg: errMsg(error, "注销失败，请确认密码正确后重试") };
+        return { ok: true };
+      }
+      if (typeof auth.deleteMe === "function") {
+        let token = "";
+        if (typeof auth.sudo === "function" && pwd) {
+          try {
+            const sr = await auth.sudo({ password: pwd });
+            token = String((sr && ((sr.data && sr.data.sudo_token) || sr.sudo_token)) || "");
+          } catch (e) { /* 拿不到 sudo_token 时仍尝试 deleteMe，由错误提示兜底 */ }
+        }
+        const { error } = await auth.deleteMe(token ? { sudo_token: token } : {});
+        if (error) return { ok: false, msg: errMsg(error, "注销失败，请稍后重试") };
+        return { ok: true };
+      }
+      return { ok: false, notSupported: true, msg: "当前云端版本暂不支持自助注销" };
+    } catch (e) {
+      return { ok: false, msg: errMsg(e, "注销失败，请稍后重试") };
+    }
+  }
+
   /* ---------- 数据读写（PostgreSQL：yiwo_kv 单表，RLS 按 owner_id 隔离） ---------- */
 
   /** 拉取某用户的云端数据包 -> { updatedAt, payload } | null */
@@ -289,7 +323,7 @@ window.Cloud = (() => {
 
   return {
     isConfigured, ready, ensureReady, init,
-    sendCode, verifyCode, signIn, signOut,
+    sendCode, verifyCode, signIn, signOut, deleteMe,
     sendResetCode, resetPassword,
     getUid, getEmail, pull, push,
     pullSocial, pushSocial,
