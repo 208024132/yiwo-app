@@ -122,6 +122,6 @@
     Store.migrateUid(r.user.id, cloudUid);
     if (window.CloudSync) { try { await CloudSync.enter(cloudUid); } catch (e) { /* ignore */ } }
 
-    location.href = "index.html";
+    location.href = localStorage.getItem("yiwo_onboarded") ? "index.html" : "onboarding.html";
   };
 })();
