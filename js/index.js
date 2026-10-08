@@ -33,12 +33,19 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
   const fit = Store.fitnessOf(u.id);
   const todayExpense = summary.trend.length ? summary.trend[summary.trend.length - 1].amount : 0;
 
+  // 问候副标题动态化：根据今天是否记账 + 连续打卡天数生成
+  let helloSub = "今天还没记账，记一笔吧";
+  if (summary.trend.length && summary.trend[summary.trend.length - 1].amount !== 0) {
+    helloSub = `今天已支出 ${UI.fmtMoney(todayExpense)}，继续保持 🌟`;
+  }
+  if (fit.streak >= 3) helloSub += ` · 已连续打卡 ${fit.streak} 天`;
+
   const quickCols = settings.gridCols === 4 ? "grid-4" : "grid-3";
 
   let html = `
     <section class="hello-card fade-in">
       <div class="hello-hi">${UI.esc((settings.homeGreeting || "你好").replace("{nickname}", u.nickname))}</div>
-      <div class="hello-sub">今天是充实的一天，继续保持 🌟</div>
+      <div class="hello-sub">${UI.esc(helloSub)}</div>
     </section>
     ${M.banner ? banners : ""}`;
 
@@ -94,7 +101,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
           </div>
           ${photo ? UI.photoBox(photo, "hm-photo") : ""}
         </div>`;
-      }).join("") : UI.emptyBox("🍃", "还没有好友动态", "去添加好友，看看大家都在做什么")}
+      }).join("") : UI.emptyBox("🍃", "还没有好友动态", "去添加好友，看看大家都在做什么", { text: "去添加好友", href: "add-friend.html" })}
     </section>`;
   }
 
@@ -114,7 +121,7 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
             <div class="progress mt-8"><i style="width:${t.pct}%"></i></div>
           </div>
           <span class="ht-pct num">${t.pct}%</span>
-        </div>`).join("") : UI.emptyBox("🎯", "今天没有待办任务", "添加一个任务，让生活更有条理")}
+        </div>`).join("") : UI.emptyBox("🎯", "今天没有待办任务", "添加一个任务，让生活更有条理", { text: "去添加", href: "tasks.html" })}
     </section>`;
   }
 
