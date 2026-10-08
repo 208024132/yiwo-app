@@ -12,6 +12,8 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.fit
     const days = Store.fitnessDays(u.id, 14);
     const todayCount = f.today.length;
     const weekDone = f.weekCount + (todayCount ? 1 : 0);
+    // 从未打卡过：展示「怎么开始」的引导
+    const neverCheckedIn = !days.some(d => d.sports.length) && todayCount === 0;
 
     const hero = `
       <div class="fit-hero">
@@ -56,7 +58,11 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.fit
         </div>
       </div>`;
 
-    body.innerHTML = hero + sports + chart + cal;
+    const hint = neverCheckedIn
+      ? `<div class="banner-bar soft fade-in">💡 点击下方运动项，完成今天的第一次打卡，开启健身之旅</div>`
+      : "";
+
+    body.innerHTML = hero + hint + sports + chart + cal;
 
     const canvas = body.querySelector("[data-canvas]");
     Charts.bars(canvas, days.map(d => d.day.slice(5)), days.map(d => d.sports.length));
