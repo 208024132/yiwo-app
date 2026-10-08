@@ -13,7 +13,7 @@ a.user-card:active { transform: scale(0.985); }
 .uc-edit { color: var(--text-3); flex-shrink: 0; }
 
 /* 排序提示行 */
-.sort-tip { display: flex; align-items: center; gap: 6px; color: var(--text-3); padding: 0 2px; }
+.sort-tip { display: flex; align-items: center; gap: 6px; color: var(--primary-strong); background: var(--primary-soft); border-radius: 12px; padding: 9px 12px; font-size: var(--fs-sm); font-weight: 600; }
 .sort-tip svg { flex-shrink: 0; }
 
 /* 功能宫格 */
