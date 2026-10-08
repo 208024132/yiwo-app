@@ -71,6 +71,28 @@ window.CloudSync = (() => {
     return (db.users || []).find(x => x && x.id === id) || null;
   }
 
+  // 上行的「对方公开档案快照」：只取公开小字段，绝不带 password/手机号/生日等私密字段，
+  // 也不带 avatarImg/coverImg 这类 base64 大图，避免社交记录体积膨胀。
+  // 注意：不直接复用 profileOf —— profileOf 只剥 password，会连 phone/age/birthday/avatarImg 一起带上行。
+  const PUBLIC_PROFILE_KEYS = ["id", "account", "nickname", "avatarEmoji", "avatarColor", "signature", "gender", "region", "regTime"];
+  function publicProfileOf(u) {
+    if (!u || !u.id) return null;
+    const p = {};
+    PUBLIC_PROFILE_KEYS.forEach(k => { if (u[k] !== undefined) p[k] = u[k]; });
+    return p;
+  }
+
+  // 下行补全本地用户档案：只有本地查不到时才补（本地可能更全/更新），并兜底剥 password。
+  function mergePeerIntoUsers(db, profile) {
+    if (!profile || !profile.id) return;
+    const existing = findUser(db, profile.id);
+    if (existing) return;
+    if (!Array.isArray(db.users)) db.users = [];
+    const clean = Object.assign({}, profile);
+    delete clean.password;
+    db.users.push(clean);
+  }
+
   /* ---------- 个人 KV 集合：记录级合并（P1-5） ----------
      accounts/wallets/debts/memos/tasks 等是以 uid 为键的「记录数组」，
      A/B 离线各加一条后整包 LWW 会互相覆盖丢数据。这里改为逐条 id 并集 +
@@ -365,13 +387,15 @@ window.CloudSync = (() => {
       if (!f || !f.a || !f.b) return;
       const id = Store.socialId("friend", f.a, f.b);
       recs[id] = { id, kind: "friend", owner_id: f.a, members: [f.a, f.b],
-        updated_at: atOf(id, f.since), deleted: false, data: { a: f.a, b: f.b, since: f.since || 0 } };
+        updated_at: atOf(id, f.since), deleted: false,
+        data: { a: f.a, b: f.b, since: f.since || 0, peer: publicProfileOf(findUser(db, f.b)) } };
     });
     (db.friendReqs || []).forEach(r => {
       if (!r || !r.from || !r.to) return;
       const id = Store.socialId("req", r.from, r.to);
       recs[id] = { id, kind: "req", owner_id: r.from, members: [r.from, r.to],
-        updated_at: atOf(id, r.t), deleted: false, data: { from: r.from, to: r.to, t: r.t || 0 } };
+        updated_at: atOf(id, r.t), deleted: false,
+        data: { from: r.from, to: r.to, t: r.t || 0, fromProfile: publicProfileOf(findUser(db, r.from)) } };
     });
     (db.chats || []).forEach(c => {
       if (!c || !c.a || !c.b) return;
@@ -380,13 +404,14 @@ window.CloudSync = (() => {
       const last = msgs.length ? msgs[msgs.length - 1].t : 0;
       recs[id] = { id, kind: "chat", owner_id: c.a, members: [c.a, c.b],
         updated_at: atOf(id, last), deleted: false,
-        data: { a: c.a, b: c.b, msgs, clearedAt: c.clearedAt || 0 } };
+        data: { a: c.a, b: c.b, msgs, clearedAt: c.clearedAt || 0, peer: publicProfileOf(findUser(db, c.b)) } };
     });
     (db.moments || []).forEach(m => {
       if (!m || !m.id || !m.uid) return;
       const id = Store.socialId("moment", m.id);
       recs[id] = { id, kind: "moment", owner_id: m.uid, members: [m.uid],
-        updated_at: atOf(id, m.t), deleted: !!m.deleted, data: m };
+        updated_at: atOf(id, m.t), deleted: !!m.deleted,
+        data: Object.assign({}, m, { authorProfile: publicProfileOf(findUser(db, m.uid)) }) };
     });
     // 墓碑：本地实体已删除但云端要留痕，否则换设备后会“复活”
     Object.keys(meta).forEach(id => {
@@ -482,10 +507,19 @@ window.CloudSync = (() => {
       socialMeta[id] = { at: Number(r.updated_at) || 0, del: r.deleted ? 1 : 0, m: r.members || [] };
       if (r.deleted) return;
       const d = r.data || {};
-      if (r.kind === "friend" && d.a && d.b) friends.push({ a: d.a, b: d.b, since: d.since || r.updated_at });
-      else if (r.kind === "req" && d.from && d.to) friendReqs.push({ from: d.from, to: d.to, t: d.t || r.updated_at });
-      else if (r.kind === "chat" && d.a && d.b) chats.push({ a: d.a, b: d.b, msgs: d.msgs || [], clearedAt: d.clearedAt || 0 });
-      else if (r.kind === "moment" && d.id && d.uid) moments.push(d);
+      if (r.kind === "friend" && d.a && d.b) {
+        friends.push({ a: d.a, b: d.b, since: d.since || r.updated_at });
+        if (d.peer) mergePeerIntoUsers(localDb, d.peer);
+      } else if (r.kind === "req" && d.from && d.to) {
+        friendReqs.push({ from: d.from, to: d.to, t: d.t || r.updated_at });
+        if (d.fromProfile) mergePeerIntoUsers(localDb, d.fromProfile);
+      } else if (r.kind === "chat" && d.a && d.b) {
+        chats.push({ a: d.a, b: d.b, msgs: d.msgs || [], clearedAt: d.clearedAt || 0 });
+        if (d.peer) mergePeerIntoUsers(localDb, d.peer);
+      } else if (r.kind === "moment" && d.id && d.uid) {
+        moments.push(d);
+        if (d.authorProfile) mergePeerIntoUsers(localDb, d.authorProfile);
+      }
     });
     moments.sort((a, b) => (b.t || 0) - (a.t || 0));   // 与 addMoment 的 unshift 顺序一致
     return { friends, friendReqs, chats, moments, socialMeta, changed };
