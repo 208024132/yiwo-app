@@ -16,6 +16,9 @@ window.Cloud = (() => {
   const TABLE_SOCIAL = "yiwo_social"; // 社交记录：一行一条（好友边/好友申请/会话/动态）
   const TABLE_USERS = "yiwo_users"; // 全站用户目录：每人一行公开档案，RLS read-all / 本人可写
 
+  // 管理员私密档案表：用户本人经 RLS（id = auth.uid()）直写，后台经云函数读全表。
+  const TABLE_ADMIN = "yiwo_admin_profiles";
+
   let app = null, auth = null, db = null;
   let sdkPromise = null;
 
@@ -333,6 +336,28 @@ window.Cloud = (() => {
     return rows;
   }
 
+  /* ---------- 管理员私密档案（yiwo_admin_profiles，RLS 本人直写） ----------
+     该表对 authenticated 开放「只能读写自己那一行」的 RLS 策略（id = auth.uid()），
+     用户端直写即可，身份由数据库兜底，无需把 JWT 交给云函数验签。
+     后台读全表走云函数 admin-users（service_role，绕 RLS）。 */
+
+  /** 写本人完整档案（含 phone/age/birthday）到 yiwo_admin_profiles（RLS 保证只能写自己那行）。
+      返回 true/false；失败静默——私密档案上云失败不影响 kv/社交主同步。 */
+  async function upsertAdminProfile(profile) {
+    if (!isConfigured() || !profile || !profile.id) return false;
+    try {
+      if (!(await ensureInit()) || !db) return false;
+      const row = Object.assign({}, profile, {
+        id: String(profile.id),
+        updated_at: Number(profile.updated_at) || Date.now(),
+      });
+      const { error } = await db.from(TABLE_ADMIN).upsert(row, { onConflict: "id" });
+      return !error;
+    } catch (e) {
+      return false;
+    }
+  }
+
   /* ---------- 数据读写（PostgreSQL：yiwo_kv 单表，RLS 按 owner_id 隔离） ---------- */
 
   /** 拉取某用户的云端数据包 -> { updatedAt, payload } | null */
@@ -416,6 +441,7 @@ window.Cloud = (() => {
     getUid, getEmail, pull, push,
     pullSocial, pushSocial,
     searchUsers, getUserProfile, upsertMyProfile, listUserProfiles,
-    TABLE_KV, TABLE_SOCIAL, TABLE_USERS,
+    upsertAdminProfile,
+    TABLE_KV, TABLE_SOCIAL, TABLE_USERS, TABLE_ADMIN,
   };
 })();
