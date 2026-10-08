@@ -36,6 +36,18 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
     return out;
   }
 
+  // 备份提醒文案：云端同步优先；否则按「上次备份时间」提示
+  function backupSub() {
+    if (window.CloudSync && CloudSync.isLinked()) return "已开启云端同步";
+    let last = 0;
+    try { last = Store.getLastBackupAt() || 0; } catch (e) { last = 0; }
+    if (!last) return "建议定期备份，防止数据丢失";
+    const days = Math.ceil((Date.now() - last) / 86400000);
+    if (days > 7) return `上次备份 ${days} 天前，建议备份`;
+    if (days <= 0) return "今天备份过";
+    return `上次备份 ${days} 天前`;
+  }
+
   // 列表：内容/顺序/显隐由后台配置，兜底内置默认
   function listItems() {
     let items = [];
@@ -43,7 +55,7 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
     if (!items.length) items = LIST_FALLBACK;
     return items.map(f => {
       const sub = f.key === "theme" ? `<span class="li-sub">${UI.esc(curTheme.name)}</span>`
-        : f.key === "backup" ? `<span class="li-sub">导出 / 导入本地数据</span>`
+        : f.key === "backup" ? `<span class="li-sub">${UI.esc(backupSub())}</span>`
         : "";
       const href = f.href ? ` href="${f.href}"` : "";
       return `
@@ -262,6 +274,7 @@ function openBackup() {
 
   s.el.querySelector("[data-export]").onclick = () => {
     const txt = Store.exportBackup();
+    Store.setLastBackupAt(Date.now());
     const d = new Date();
     const pad = n => (n < 10 ? "0" + n : "" + n);
     const name = `yiwo-backup-${d.getFullYear()}${pad(d.getMonth() + 1)}${pad(d.getDate())}.json`;
@@ -345,8 +358,8 @@ function openCloudInfo() {
   const s = UI.sheet(`
     <div class="sheet-head"><h3>多设备同步</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
     <div class="about-rows">
-      <p class="txt-sm txt-2">当前还没有配置云端环境，数据只保存在本机浏览器里，换手机或换电脑就看不到。</p>
-      <p class="txt-sm txt-2">部署云环境后，把「环境 ID」填入 js/cloud.js 的 ENV_ID，这里就会出现「开启」按钮——用同一个邮箱即可跨设备登录并同步。</p>
+      <p class="txt-sm txt-2">当前版本尚未开通云端同步，你的数据仅保存在本机。</p>
+      <p class="txt-sm txt-2">如需跨设备同步，请联系管理员开通。</p>
     </div>`);
   s.el.querySelector("[data-close]").onclick = s.close;
 }
