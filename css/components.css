@@ -195,6 +195,12 @@
 }
 .empty .empty-title { font-weight: 600; color: var(--text-2); }
 .empty .empty-sub { font-size: var(--fs-xs); color: var(--text-3); max-width: 240px; }
+.empty .empty-act {
+  margin-top: 6px; padding: 8px 20px; border-radius: 999px;
+  background: var(--primary-soft); color: var(--primary-strong);
+  font-size: var(--fs-sm); font-weight: 600; text-decoration: none;
+}
+.empty .empty-act:active { opacity: 0.75; }
 
 /* ---------- Toast ---------- */
 .toast-wrap {
