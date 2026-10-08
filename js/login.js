@@ -6,6 +6,12 @@
   // 已登录直接进首页
   if (Store.currentUser()) { location.replace("index.html"); return; }
 
+  // 冷启动时 store.js 的 hydrate 是异步的，首帧 currentUser() 可能尚未反映 IndexedDB 里的会话。
+  // 数据接管完成后再判断一次登录态，避免误判。
+  window.addEventListener("yiwo:store-ready", () => {
+    if (Store.currentUser()) location.replace("index.html");
+  });
+
   const accountEl = document.getElementById("account");
   const pwdEl = document.getElementById("password");
   const errEl = document.getElementById("login-err");
