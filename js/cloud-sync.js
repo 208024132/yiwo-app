@@ -70,6 +70,290 @@ window.CloudSync = (() => {
   function findUser(db, id) {
     return (db.users || []).find(x => x && x.id === id) || null;
   }
+
+  /* ---------- 个人 KV 集合：记录级合并（P1-5） ----------
+     accounts/wallets/debts/memos/tasks 等是以 uid 为键的「记录数组」，
+     A/B 离线各加一条后整包 LWW 会互相覆盖丢数据。这里改为逐条 id 并集 +
+     updated_at 较新者胜，删除用 kvMeta 墓碑（参考 socialRecords 思路）。
+     catOrder/order/friendGroup/remark/chatHidden/friendNav/fitness 为
+     「映射/聚合」结构，按各自语义做并集，避免并发新增丢失。 */
+  const RECORD_KEYS = {
+    accounts: "id", wallets: "id", debts: "id", customCats: "key",
+    groups: "id", memos: "id", tasks: "id",
+  };
+  const STRING_ARRAY_KEYS = ["order", "friendNav", "chatHidden"];
+  const MAP_KEYS = ["friendGroup", "remark"];
+
+  // 记录级集合里，记录的唯一标识字段（customCats 用 key，其余用 id）
+  function recId(k, rec) {
+    const f = RECORD_KEYS[k];
+    if (!f || !rec || rec[f] == null) return "";
+    return String(rec[f]);
+  }
+
+  // 归一化记录时间戳：优先 updated_at，其次 t；两者皆无则补 updated_at=now。
+  // 返回 { at, changed }，changed 表示给记录补齐了 updated_at（调用方需持久化）。
+  function recordAt(rec, now) {
+    if (!rec || typeof rec !== "object") return { at: 0, changed: false };
+    let at = Number(rec.updated_at) || 0;
+    if (!at && rec.t != null) {
+      at = Number(rec.t) || 0;
+      if (at) { rec.updated_at = at; return { at, changed: true }; }
+    }
+    if (!at) { rec.updated_at = now; return { at: now, changed: true }; }
+    return { at, changed: false };
+  }
+
+  function ensureKvMeta(db) {
+    if (!db.kvMeta || typeof db.kvMeta !== "object") db.kvMeta = {};
+    return db.kvMeta;
+  }
+
+  // 合并两条 kvMeta 墓碑条目：较新 at 胜；at 相同则「已删除」胜（防止复活）
+  function mergeMetaEntry(a, b) {
+    if (!a) return b ? { at: Number(b.at) || 0, del: b.del ? 1 : 0 } : null;
+    if (!b) return { at: Number(a.at) || 0, del: a.del ? 1 : 0 };
+    const atA = Number(a.at) || 0, atB = Number(b.at) || 0;
+    if (atB > atA) return { at: atB, del: b.del ? 1 : 0 };
+    if (atA > atB) return { at: atA, del: a.del ? 1 : 0 };
+    return { at: atA, del: (a.del || b.del) ? 1 : 0 };
+  }
+
+  /**
+   * 以当前内存记录为基准更新 kvMeta：
+   * - 现存记录：登记 del=0，并把 updated_at 补齐到记录上；
+   * - kvMeta 里 del=0 但当前已不存在的记录：转成墓碑 del=1（删除跨端传播）。
+   * 返回是否有变更（调用方需持久化）。
+   */
+  function syncKvMeta(db, now) {
+    let changed = false;
+    ensureKvMeta(db);
+    Object.keys(RECORD_KEYS).forEach(k => {
+      const map = db[k] || {};
+      if (!db.kvMeta[k]) db.kvMeta[k] = {};
+      Object.keys(map).forEach(uid => {
+        const list = Array.isArray(map[uid]) ? map[uid] : [];
+        if (!db.kvMeta[k][uid]) db.kvMeta[k][uid] = {};
+        const seen = {};
+        list.forEach(rec => {
+          if (!rec || typeof rec !== "object") return;
+          const id = recId(k, rec);
+          if (!id) return;
+          seen[id] = 1;
+          const ra = recordAt(rec, now);
+          if (ra.changed) changed = true;
+          const prev = db.kvMeta[k][uid][id] || { at: 0, del: 0 };
+          const prevAt = Number(prev.at) || 0;
+          const at = Math.max(prevAt, ra.at);
+          if (at !== prevAt || prev.del !== 0) {
+            db.kvMeta[k][uid][id] = { at, del: 0 };
+            changed = true;
+          }
+        });
+        Object.keys(db.kvMeta[k][uid]).forEach(id => {
+          const m = db.kvMeta[k][uid][id];
+          if (m && !m.del && !seen[id]) {
+            db.kvMeta[k][uid][id] = { at: Math.max(Number(m.at) || 0, now), del: 1 };
+            changed = true;
+          }
+        });
+      });
+    });
+    return changed;
+  }
+
+  // 合并两个 kvMeta 映射（每 uid 每 id 按 LWW 取较新者）
+  function mergeMetaMap(localMeta, remoteMeta) {
+    const out = {};
+    const m1 = localMeta || {}, m2 = remoteMeta || {};
+    const uids = {};
+    Object.keys(m1).forEach(u => uids[u] = 1);
+    Object.keys(m2).forEach(u => uids[u] = 1);
+    Object.keys(uids).forEach(uid => {
+      const a = m1[uid] || {}, b = m2[uid] || {};
+      const ids = {};
+      Object.keys(a).forEach(i => ids[i] = 1);
+      Object.keys(b).forEach(i => ids[i] = 1);
+      out[uid] = {};
+      Object.keys(ids).forEach(id => {
+        const e = mergeMetaEntry(a[id] || null, b[id] || null);
+        if (e) out[uid][id] = e;
+      });
+    });
+    return out;
+  }
+
+  // Store.migrateUid 会把 kv 集合的 uid 键整体搬迁，但 kvMeta 是云同步层新增的字段，
+  // 不会被它感知。这里在 migrateUid 后把 kvMeta 的 uid 键同步搬过去，避免墓碑/时间戳滞留旧 uid。
+  function migrateKvMetaUid(from, to) {
+    if (!from || !to || from === to) return;
+    const db = Store.getSnapshot();
+    if (!db || !db.kvMeta) return;
+    Object.keys(db.kvMeta).forEach(k => {
+      const m = db.kvMeta[k] || {};
+      if (!Object.prototype.hasOwnProperty.call(m, from)) return;
+      if (!m[to]) m[to] = {};
+      Object.keys(m[from] || {}).forEach(id => {
+        m[to][id] = mergeMetaEntry(m[to][id] || null, m[from][id] || null);
+      });
+      delete m[from];
+    });
+  }
+
+  // 单边（本地或云端）记录集 -> 规范化条目：{ rec, at, deleted }
+  function sideEntries(k, arr, meta, now) {
+    const entries = {};
+    (Array.isArray(arr) ? arr : []).forEach(rec => {
+      if (!rec || typeof rec !== "object") return;
+      const id = recId(k, rec);
+      if (!id) return;
+      const ra = recordAt(rec, now);
+      const m = (meta && meta[id]) || null;
+      entries[id] = {
+        rec,
+        at: Math.max(ra.at, m ? (Number(m.at) || 0) : 0),
+        deleted: !!(m && m.del),
+      };
+    });
+    // 纯墓碑：对端已删但本地/云端无对应记录，仍要能传播删除
+    Object.keys(meta || {}).forEach(id => {
+      const m = meta[id];
+      if (m && m.del && !entries[id]) entries[id] = { rec: null, at: Number(m.at) || 0, deleted: true };
+    });
+    return entries;
+  }
+
+  // 单条记录 LWW 合并：较新 at 胜；平局时非删除者胜
+  function mergeKvEntry(local, remote) {
+    if (!local) return remote;
+    if (!remote) return local;
+    if (remote.at > local.at) return remote;
+    if (local.at > remote.at) return local;
+    if (local.deleted && !remote.deleted) return remote;
+    return local;
+  }
+
+  // 记录数组集合合并（accounts/wallets/debts/customCats/groups/memos/tasks）
+  function mergeRecordArray(k, L, R, localMeta, remoteMeta, now) {
+    const out = {};
+    const uids = {};
+    Object.keys(L || {}).forEach(u => uids[u] = 1);
+    Object.keys(R || {}).forEach(u => uids[u] = 1);
+    Object.keys(uids).forEach(uid => {
+      const lArr = Array.isArray((L && L[uid])) ? L[uid] : [];
+      const rArr = Array.isArray((R && R[uid])) ? R[uid] : [];
+      const lm = (localMeta && localMeta[uid]) || {};
+      const rm = (remoteMeta && remoteMeta[uid]) || {};
+      const le = sideEntries(k, lArr, lm, now);
+      const re = sideEntries(k, rArr, rm, now);
+      const order = [];
+      lArr.forEach(rec => { const id = recId(k, rec); if (id && order.indexOf(id) < 0) order.push(id); });
+      rArr.forEach(rec => { const id = recId(k, rec); if (id && order.indexOf(id) < 0) order.push(id); });
+      Object.keys(le).forEach(id => { if (order.indexOf(id) < 0) order.push(id); });
+      Object.keys(re).forEach(id => { if (order.indexOf(id) < 0) order.push(id); });
+      const result = [];
+      order.forEach(id => {
+        const w = mergeKvEntry(le[id] || null, re[id] || null);
+        if (w && !w.deleted && w.rec) result.push(w.rec);
+      });
+      out[uid] = result;
+    });
+    return out;
+  }
+
+  // 字符串数组集合合并（order/friendNav/chatHidden）：并集去重，本地顺序优先
+  function mergeStringArray(L, R) {
+    const out = {};
+    const uids = {};
+    Object.keys(L || {}).forEach(u => uids[u] = 1);
+    Object.keys(R || {}).forEach(u => uids[u] = 1);
+    Object.keys(uids).forEach(uid => {
+      const l = Array.isArray((L && L[uid])) ? L[uid] : [];
+      const r = Array.isArray((R && R[uid])) ? R[uid] : [];
+      const seen = {}, res = [];
+      l.concat(r).forEach(v => { if (v != null && !seen[v]) { seen[v] = 1; res.push(v); } });
+      out[uid] = res;
+    });
+    return out;
+  }
+
+  // 对象映射集合合并（friendGroup/remark）：按键并集，冲突时云端优先
+  function mergeMap(L, R) {
+    const out = {};
+    const uids = {};
+    Object.keys(L || {}).forEach(u => uids[u] = 1);
+    Object.keys(R || {}).forEach(u => uids[u] = 1);
+    Object.keys(uids).forEach(uid => {
+      out[uid] = Object.assign({}, (L && L[uid]) || {}, (R && R[uid]) || {});
+    });
+    return out;
+  }
+
+  // catOrder：{ uid: { in: [keys], out: [keys] } } 按类型做字符串并集
+  function mergeCatOrder(L, R) {
+    const out = {};
+    const uids = {};
+    Object.keys(L || {}).forEach(u => uids[u] = 1);
+    Object.keys(R || {}).forEach(u => uids[u] = 1);
+    Object.keys(uids).forEach(uid => {
+      const l = (L && L[uid]) || {}, r = (R && R[uid]) || {};
+      out[uid] = {};
+      ["in", "out"].forEach(type => {
+        const a = Array.isArray(l[type]) ? l[type] : [];
+        const b = Array.isArray(r[type]) ? r[type] : [];
+        const seen = {}, res = [];
+        a.concat(b).forEach(v => { if (v != null && !seen[v]) { seen[v] = 1; res.push(v); } });
+        out[uid][type] = res;
+      });
+    });
+    return out;
+  }
+
+  // fitness：{ uid: { goalWeekly, days: { date: [sportKey] } } } 按天并集运动项
+  function mergeFitness(L, R) {
+    const out = {};
+    const uids = {};
+    Object.keys(L || {}).forEach(u => uids[u] = 1);
+    Object.keys(R || {}).forEach(u => uids[u] = 1);
+    Object.keys(uids).forEach(uid => {
+      const l = (L && L[uid]) || {}, r = (R && R[uid]) || {};
+      const dates = {};
+      Object.keys(l.days || {}).forEach(d => dates[d] = 1);
+      Object.keys(r.days || {}).forEach(d => dates[d] = 1);
+      const days = {};
+      Object.keys(dates).forEach(d => {
+        const a = Array.isArray((l.days && l.days[d])) ? l.days[d] : [];
+        const b = Array.isArray((r.days && r.days[d])) ? r.days[d] : [];
+        const seen = {}, res = [];
+        a.concat(b).forEach(v => { if (v != null && !seen[v]) { seen[v] = 1; res.push(v); } });
+        days[d] = res;
+      });
+      out[uid] = {
+        goalWeekly: (r.goalWeekly != null ? r.goalWeekly : (l.goalWeekly != null ? l.goalWeekly : 4)),
+        days,
+      };
+    });
+    return out;
+  }
+
+  // 主合并入口：对每个 KV 集合按各自语义合并本地与云端（并集 + LWW + 墓碑）
+  function mergeKv(localDb, data, remoteMeta, now) {
+    syncKvMeta(localDb, now);   // 先登记本地墓碑 + 补齐 updated_at
+    const localMeta = (localDb && localDb.kvMeta) || {};
+    const out = {};
+    KV_KEYS.forEach(k => {
+      const L = (localDb && localDb[k]) || {};
+      const R = (data && data[k]) || {};
+      if (RECORD_KEYS[k]) out[k] = mergeRecordArray(k, L, R, localMeta[k], (remoteMeta && remoteMeta[k]), now);
+      else if (STRING_ARRAY_KEYS.indexOf(k) >= 0) out[k] = mergeStringArray(L, R);
+      else if (MAP_KEYS.indexOf(k) >= 0) out[k] = mergeMap(L, R);
+      else if (k === "catOrder") out[k] = mergeCatOrder(L, R);
+      else if (k === "fitness") out[k] = mergeFitness(L, R);
+      else out[k] = Object.assign({}, L, R);   // 兜底：保持旧行为
+    });
+    return out;
+  }
+
   /* ---------- 社交记录序列化 / 合并（P2：好友、好友申请、会话、动态） ---------- */
   // 本地四类集合 -> 云端记录数组（id / kind / owner_id / members / updated_at / deleted / data）
   function socialRecords(db) {
@@ -222,12 +506,13 @@ window.CloudSync = (() => {
   function snapshotHash(db) {
     const u = findUser(db, cloudUid || localUid());
     return hash(JSON.stringify(kvSnapshot(db))) + "|"
-      + hash(u ? JSON.stringify(profileOf(u)) : "") + "|" + socialDigest(db);
+      + hash(u ? JSON.stringify(profileOf(u)) : "") + "|" + socialDigest(db)
+      + "|" + hash(JSON.stringify(db.kvMeta || {}));
   }
   function buildPayload(uid, db) {
     const u = findUser(db, uid);
-    // 剥掉明文密码，只上行公开资料
-    return { kv: kvSnapshot(db), profile: u ? profileOf(u) : {} };
+    // 剥掉明文密码，只上行公开资料；kvMeta 携带个人 KV 记录级合并所需的墓碑。
+    return { kv: kvSnapshot(db), profile: u ? profileOf(u) : {}, meta: db.kvMeta || {} };
   }
 
   /**
@@ -251,8 +536,12 @@ window.CloudSync = (() => {
     if (!u.gender) u.gender = "保密";
     return u;
   }
-  function buildNext(kvData, uid, profile, localDb, soc, email) {
+  function buildNext(kvData, uid, profile, localDb, soc, email, remoteMeta) {
     const data = kvData || {};
+    const now = Date.now();
+    // P1-5：个人 KV 集合改为逐条记录级合并（并集 + updated_at LWW + 墓碑），
+    // 避免 A/B 离线各加一条后整包 LWW 互相覆盖。mergeKv 内部会先登记本地墓碑。
+    const mergedKv = mergeKv(localDb, data, remoteMeta || {}, now);
     const next = {
       users: [],
       friends: soc.friends,
@@ -265,9 +554,10 @@ window.CloudSync = (() => {
       books: data.books || localDb.books || { recommend: [], shelf: {} },
       session: { type: "user", uid: uid },
       seq: localDb.seq || 1,
+      kvMeta: mergeMetaMap((localDb && localDb.kvMeta) || {}, remoteMeta || {}),
     };
     KV_KEYS.forEach(k => {
-      next[k] = Object.assign({}, (localDb[k] || {}), (data[k] || {}));
+      next[k] = mergedKv[k];
     });
 
     const seen = {};
@@ -346,6 +636,8 @@ window.CloudSync = (() => {
     flushing = true;
     setStatus("syncing");
     const now = Date.now();
+    // P1-5：上传前登记 kvMeta 墓碑 + 给缺时间戳的记录补 updated_at，保证删除能跨端传播。
+    const metaChanged = syncKvMeta(db, now);
     const kvOk = await Cloud.push(cloudUid, buildPayload(cloudUid, db), now);
     let socOk = true;
     try { socOk = await Cloud.pushSocial(socialRecords(db)); } catch (e) { socOk = false; }
@@ -358,6 +650,7 @@ window.CloudSync = (() => {
     } else {
       setStatus("error", "同步失败，请检查网络后重试");
     }
+    if (metaChanged) { try { Store.save(); } catch (e) { /* ignore */ } }
     if (pendingAgain) { pendingAgain = false; if (ok) onLocalChange(); }
     return ok;
   }
@@ -372,7 +665,7 @@ window.CloudSync = (() => {
       // 尝试从云端会话取邮箱，给骨架档案补上账号/昵称（取不到不影响主流程）
       let email = "";
       try { email = await Cloud.getEmail(); } catch (e) { /* ignore */ }
-      const next = buildNext(payload && payload.kv, uid, payload && payload.profile, localDb, soc, email);
+      const next = buildNext(payload && payload.kv, uid, payload && payload.profile, localDb, soc, email, payload && payload.meta);
       Store.beginRemoteApply();
       try {
         Store.applyRemote(next, { keepSession: false });
@@ -395,19 +688,43 @@ window.CloudSync = (() => {
   }
 
   /* ---------- 登录/注册后的统一入口 ---------- */
-  async function enter(uid) {
+  /**
+   * enter(uid, force)
+   * P1-6：本机已登录另一账号（localUid 非空且 ≠ uid）时，默认不再把 A 改名并入 B，
+   * 防止跨账号串号。取舍：
+   * - 云端已有数据（pull 到 payload）→ 以云端为准建立当前会话，本机 A 数据保留为
+   *   「其它账号」，不自动并入（adopt 的 buildNext 本就不会清掉其它账号的 kv/users）。
+   * - 云端无数据 → 需用户确认「本机数据并入云端账号」；确认后（force=true）才走旧迁移。
+   * force 参数用于调用方已自行确认的场景，避免二次弹窗。
+   */
+  async function enter(uid, force) {
     if (!uid) return { ok: false, msg: "缺少云端账号标识" };
     if (!Cloud.isConfigured()) return { ok: false, msg: "云端服务未启用" };
     setStatus("syncing");
     await whenStoreReady();
     try {
-      // 本地新注册账号 id 与云端 uid 对齐（老账号启用同步同理）
       const cur = localUid();
-      if (cur && cur !== uid) Store.migrateUid(cur, uid);
-
       const remote = await Cloud.pull(uid);
       const social = await pullSocialSafe();
       const hasRemote = !!(remote && remote.payload);
+
+      if (cur && cur !== uid && !hasRemote) {
+        if (!force) {
+          const msg = "本机已有账号（" + cur + "）的数据，开启同步会把这些数据合并到云端账号 " + uid + "，是否继续？";
+          setStatus("idle");
+          if (window.UI && typeof UI.confirm === "function") {
+            const ok = await UI.confirm("合并本机数据？", msg, { danger: true, okText: "合并", cancelText: "取消" });
+            if (!ok) return { ok: false, cancelled: true, msg: "已取消同步" };
+          } else {
+            return { ok: false, needConfirm: true, msg };
+          }
+        }
+        // 用户确认合并：沿用旧迁移路径（A -> B），随后走首次上传。
+        Store.migrateUid(cur, uid);
+        migrateKvMetaUid(cur, uid);   // kvMeta 的 uid 键跟着一起搬迁，避免墓碑滞留旧账号
+        try { Store.save(); } catch (e) { /* ignore */ }
+      }
+
       if (hasRemote) {
         await adopt(remote.payload, uid, social);
         const at = Number(remote.updatedAt) || Date.now();
