@@ -40,7 +40,13 @@ UserShell.boot({ tab: "home", title: "", right: "avatar" });
   }
   if (fit.streak >= 3) helloSub += ` · 已连续打卡 ${fit.streak} 天`;
 
-  const quickCols = settings.gridCols === 4 ? "grid-4" : "grid-3";
+  // 宫格列数优先级：后台 gridCols=4 > 用户本地选择 > 默认 3 列
+  const localGrid = Number(localStorage.getItem("yiwo_grid_cols"));
+  const userGrid = (settings.userGridCols === 3 || settings.userGridCols === 4)
+    ? settings.userGridCols
+    : ((localGrid === 3 || localGrid === 4) ? localGrid : 0);
+  const gridCols = settings.gridCols === 4 ? 4 : (userGrid === 4 ? 4 : 3);
+  const quickCols = gridCols === 4 ? "grid-4" : "grid-3";
 
   let html = `
     <section class="hello-card fade-in">
