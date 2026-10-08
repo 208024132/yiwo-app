@@ -7,7 +7,7 @@
   if (Store.currentUser()) { location.replace("index.html"); return; }
 
   const el = id => document.getElementById(id);
-  const emailRe = /^[a-zA-Z0-9._%+-]+@qq\.com$/;
+  const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const codeRe = /^\d{6}$/;
 
   const nickname = el("nickname");
@@ -29,7 +29,7 @@
   // 邮箱失焦校验
   account.addEventListener("blur", () => {
     const v = account.value.trim();
-    err("account").textContent = (v && !emailRe.test(v)) ? "请使用 QQ 邮箱注册（xxx@qq.com）" : "";
+    err("account").textContent = (v && !emailRe.test(v)) ? "请输入正确的邮箱地址（如 name@example.com）" : "";
   });
 
   function startCountdown() {
@@ -50,7 +50,7 @@
   // 发送验证码
   sendBtn.onclick = async () => {
     if (!validEmail()) {
-      err("account").textContent = "请使用 QQ 邮箱注册（xxx@qq.com）";
+      err("account").textContent = "请输入正确的邮箱地址（如 name@example.com）";
       return;
     }
     err("account").textContent = "";
@@ -75,7 +75,7 @@
       return;
     }
     codeSent = true;
-    UI.toast("验证码已发送至你的 QQ 邮箱", "success");
+    UI.toast("验证码已发送至你的邮箱", "success");
     startCountdown();
   };
 
@@ -92,7 +92,7 @@
 
     let ok = true;
     if (!nickname.value.trim()) { err("nickname").textContent = "请填写网名"; ok = false; }
-    if (!validEmail()) { err("account").textContent = "请使用 QQ 邮箱注册（xxx@qq.com）"; ok = false; }
+    if (!validEmail()) { err("account").textContent = "请输入正确的邮箱地址（如 name@example.com）"; ok = false; }
     if (!codeRe.test(code.value.trim())) { err("code").textContent = "请输入 6 位数字验证码"; ok = false; }
     if (password.value.length < 8) { err("password").textContent = "密码至少 8 位"; ok = false; }
     if (confirm.value !== password.value) { err("confirm").textContent = "两次输入的密码不一致"; ok = false; }
