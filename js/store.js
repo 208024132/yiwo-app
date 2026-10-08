@@ -746,7 +746,7 @@ window.Store = (() => {
     const user = {
       id, account, nickname: nickname || account.split("@")[0], avatarEmoji: "🙂",
       avatarColor: Math.floor(Math.random() * 8), signature: "这个人很懒，什么都没写",
-      phone: "", age: 0, gender: "保密", birthday: "", region: "广东·深圳",
+      phone: "", age: 0, gender: "保密", birthday: "", region: "",
       privacyDefault: "friends", regTime: Date.now(),
     };
     db.users.push(user);
@@ -889,7 +889,7 @@ window.Store = (() => {
       if (gender && u.gender !== gender) return false;
       if (region && u.region !== region && !String(u.region || "").startsWith(region + "·")) return false;
       if (q) {
-        const blob = [u.nickname, u.account, u.id, u.phone, u.signature, u.region, String(u.age)].join(" ").toLowerCase();
+        const blob = [u.nickname, u.account, u.id, u.signature, u.region, String(u.age)].join(" ").toLowerCase();
         if (!blob.includes(q)) return false;
       }
       return true;
