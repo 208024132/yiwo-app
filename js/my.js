@@ -71,7 +71,7 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
     <section class="card sync-card fade-in mt-16" id="sync-card"></section>
 
     <div class="sort-tip mt-16">
-      ${UI.icon("info", 14)}<span class="txt-xs txt-3">长按拖动图标可调整功能顺序</span>
+      ${UI.icon("info", 15)}<span>长按图标可拖动排序</span>
     </div>
 
     <section class="func-grid" id="func-grid">
