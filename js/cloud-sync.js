@@ -147,17 +147,22 @@ window.CloudSync = (() => {
     };
   }
 
-  // 发布本人公开档案到 yiwo_users（失败静默，不阻塞主同步）。
+  // 发布本人公开档案（yiwo_users）+ 私密档案（yiwo_admin_profiles）。
+  // 返回 { ok, publicOk, adminOk }：把资料上云纳入同步主流程的结果判定，
+  // 失败时由调用方给出明确提示，而不是静默吞掉（这是「改资料后立即同步却看不到」的根因）。
   async function upsertSelfProfile() {
+    const res = { ok: false, publicOk: false, adminOk: false };
     try {
       const u = localUser();
+      if (!u || !u.id) return res;
       const row = toUserRow(u);
-      if (row) await Cloud.upsertMyProfile(row);
-      // 同时把含私密字段的完整档案直写进 yiwo_admin_profiles（后台用户管理用）。
-      // RLS 策略保证只能写本人那行；失败时静默，不影响 kv/社交主同步。
+      if (row) res.publicOk = !!(await Cloud.upsertMyProfile(row));
+      // 含私密字段（phone/age/birthday）的完整档案，RLS 保证只能写本人那行。
       const adm = toAdminRow(u);
-      if (adm) await Cloud.upsertAdminProfile(adm);
-    } catch (e) { /* 用户目录表不存在/失败不影响 kv/社交同步 */ }
+      if (adm) res.adminOk = !!(await Cloud.upsertAdminProfile(adm));
+      res.ok = res.publicOk || res.adminOk;
+      return res;
+    } catch (e) { return res; }
   }
 
   // 换设备批量补好友档案：收集所有好友 id，去云端目录拉公开档案并补进本地 users。
@@ -762,13 +767,21 @@ window.CloudSync = (() => {
     const kvOk = await Cloud.push(cloudUid, buildPayload(cloudUid, db), now);
     let socOk = true;
     try { socOk = await Cloud.pushSocial(socialRecords(db)); } catch (e) { socOk = false; }
+    // 个人资料（公开档案 + 私密档案）纳入主流程：等待其结果，参与成功判定。
+    // 之前是 pushAll 后异步非阻塞调用且失败静默，导致「改资料后立即同步」资料没上云也无提示。
+    let prof = { ok: false, publicOk: false, adminOk: false };
+    try { prof = await upsertSelfProfile(); } catch (e) { prof = { ok: false, publicOk: false, adminOk: false }; }
     const ok = kvOk && socOk;
     flushing = false;
     if (ok) {
       lastHash = snapshotHash(db);
       writeLS(SYNC_KEY, String(now));
-      setStatus("ok");
-      upsertSelfProfile();   // 上行成功后顺带发布本人公开档案（非阻塞，失败静默）
+      // 数据主体成功，但资料发布失败时给出明确提示，而非伪装「全部成功」。
+      if (!prof.ok) {
+        setStatus("error", "数据已同步，但个人资料上传失败（后台可能看不到手机号/生日），请稍后重试");
+      } else {
+        setStatus("ok");
+      }
     } else {
       setStatus("error", "同步失败，请检查网络后重试");
     }
