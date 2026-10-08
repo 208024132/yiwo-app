@@ -112,7 +112,7 @@ UserShell.boot({ tab: null, title: dispName, back: "friends.html", hideTab: true
     if (u.id !== fid) {
       if (isF) {
         actions = `<div class="profile-actions">
-          <a class="btn primary" href="chat.html?id=${fid}">${UI.icon("comment", 16)} 发消息</a>
+          <a class="btn primary" href="chat.html?id=${encodeURIComponent(fid)}">${UI.icon("comment", 16)} 发消息</a>
           <button class="btn ghost" data-del>删除好友</button>
         </div>
         <div class="profile-actions">
