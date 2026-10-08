@@ -46,6 +46,10 @@
   aspect-ratio: 16 / 10; border-radius: 14px; display: flex; align-items: center;
   justify-content: center; font-size: 34px; min-height: 110px; width: 100%;
 }
+.m-repost-tip { margin-top: 10px; font-size: var(--fs-sm); color: var(--text-2); }
+.m-repost-card { margin-top: 8px; background: var(--card-2); border-radius: 14px; padding: 12px; }
+.m-repost-card .m-text { margin-top: 0; color: var(--text-2); }
+.m-photo-sm { min-height: 96px; font-size: 34px; margin-top: 10px; }
 
 /* QQ空间式互动区样式见 components.css（.qz-* / .m-acts） */
 
