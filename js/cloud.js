@@ -14,6 +14,7 @@ window.Cloud = (() => {
   const SDK_URL = "https://static.cloudbase.net/cloudbase-js-sdk/3.10.1/cloudbase.full.js";
   const TABLE_KV = "yiwo_kv";    // 每个用户一行：id = 用户 ID，data = 个人数据整包
   const TABLE_SOCIAL = "yiwo_social"; // 社交记录：一行一条（好友边/好友申请/会话/动态）
+  const TABLE_USERS = "yiwo_users"; // 全站用户目录：每人一行公开档案，RLS read-all / 本人可写
 
   let app = null, auth = null, db = null;
   let sdkPromise = null;
@@ -245,6 +246,93 @@ window.Cloud = (() => {
     }
   }
 
+  /* ---------- 全站用户目录（yiwo_users：RLS read-all 公开档案，本人可写自己那行） ----------
+     防御式：表尚未建好 / 无权限 / 查询报错时，一律返回空/失败，绝不抛未捕获异常。 */
+
+  // 按 id 去重（三列搜索结果可能命中同一行）
+  function dedupeUsers(rows) {
+    const seen = {}, out = [];
+    (Array.isArray(rows) ? rows : []).forEach(r => {
+      if (!r || !r.id) return;
+      const id = String(r.id);
+      if (seen[id]) return;
+      seen[id] = 1;
+      out.push(r);
+    });
+    return out;
+  }
+
+  // 把用户输入里的 LIKE 通配符转义成字面量，避免 `%`/`_`/`\` 被当成通配符
+  function escapeLike(s) {
+    return String(s == null ? "" : s).replace(/[\\%_]/g, m => "\\" + m);
+  }
+
+  /** 全站搜索用户（昵称/ID/账号 模糊匹配，最多 20 条）。 */
+  async function searchUsers(q) {
+    if (!enabled() || !db) return [];
+    const key = String(q || "").trim();
+    if (!key) return [];
+    const like = "%" + escapeLike(key) + "%";
+    const cols = ["nickname", "account", "id"];
+
+    // 不使用 .or()：CloudBase rdb 对 or 内 like/ilike 的通配符约定（% 还是 *）无法在
+    // 本地仓库里确定，且无法连真库验证。改成分列 ilike + 前端按 id 去重，语义等价、兼容性更稳。
+    const hasOp = op => typeof db.from(TABLE_USERS).select("*")[op] === "function";
+    const op = hasOp("ilike") ? "ilike" : (hasOp("like") ? "like" : "");
+    if (!op) return [];
+
+    const parts = await Promise.all(cols.map(async col => {
+      try {
+        const res = await db.from(TABLE_USERS).select("*")[op](col, like).limit(20);
+        return (res && !res.error && Array.isArray(res.data)) ? res.data : [];
+      } catch (e) { return []; }   // 表不存在 / 该操作符不支持 / 该列不存在，一律忽略
+    }));
+    return dedupeUsers([].concat(...parts)).slice(0, 20);
+  }
+
+  /** 拉取单个用户的公开档案 -> 行对象 | null */
+  async function getUserProfile(id) {
+    if (!enabled() || !db || !id) return null;
+    try {
+      const { data, error } = await db.from(TABLE_USERS).select("*").eq("id", String(id));
+      if (error) return null;
+      return (data && data[0]) || null;
+    } catch (e) { return null; }
+  }
+
+  /** 写入/更新本人的公开档案（RLS 保证只能写自己那行；失败静默） */
+  async function upsertMyProfile(profile) {
+    if (!enabled() || !db || !profile || !profile.id) return false;
+    try {
+      const { error } = await db.from(TABLE_USERS).upsert(profile, { onConflict: "id" });
+      return !error;
+    } catch (e) { return false; }
+  }
+
+  /** 批量拉取多个用户的公开档案（ids 为字符串数组，最多 200） */
+  async function listUserProfiles(ids) {
+    if (!enabled() || !db || !Array.isArray(ids) || !ids.length) return [];
+    const uniq = [...new Set(ids.map(String).filter(Boolean))].slice(0, 200);
+    if (!uniq.length) return [];
+    const builder = db.from(TABLE_USERS).select("*");
+    if (typeof builder.in === "function") {
+      try {
+        const { data, error } = await builder.in("id", uniq);
+        if (error) return [];
+        return Array.isArray(data) ? data : [];
+      } catch (e) { return []; }
+    }
+    // 降级：不支持 .in 时逐条 eq（仍静默失败）
+    const rows = [];
+    for (const id of uniq) {
+      try {
+        const { data, error } = await db.from(TABLE_USERS).select("*").eq("id", id);
+        if (!error && data && data[0]) rows.push(data[0]);
+      } catch (e) { /* ignore */ }
+    }
+    return rows;
+  }
+
   /* ---------- 数据读写（PostgreSQL：yiwo_kv 单表，RLS 按 owner_id 隔离） ---------- */
 
   /** 拉取某用户的云端数据包 -> { updatedAt, payload } | null */
@@ -327,6 +415,7 @@ window.Cloud = (() => {
     sendResetCode, resetPassword,
     getUid, getEmail, pull, push,
     pullSocial, pushSocial,
-    TABLE_KV, TABLE_SOCIAL,
+    searchUsers, getUserProfile, upsertMyProfile, listUserProfiles,
+    TABLE_KV, TABLE_SOCIAL, TABLE_USERS,
   };
 })();
