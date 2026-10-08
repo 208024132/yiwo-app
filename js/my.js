@@ -329,22 +329,16 @@ function renderSyncCard() {
         <div class="sc-title">多设备同步 <span class="sc-state ${st.state}">${UI.esc(stateText)}</span></div>
         <div class="sc-sub txt-xs txt-3 ellipsis">${UI.esc(sub)}</div>
       </div>
-      <button class="btn ghost sm" id="sc-action">${linked ? "立即同步" : "开启"}</button>
+      ${linked ? "" : `<button class="btn ghost sm" id="sc-action">开启</button>`}
     </div>`;
 
-  box.querySelector("#sc-action").onclick = () => {
-    if (linked) { doSyncNow(); return; }
-    if (!configured) { openCloudInfo(); return; }
-    openEnableSync();
-  };
-}
-
-async function doSyncNow() {
-  if (!window.CloudSync) return;
-  UI.toast("正在同步…", "info");
-  const ok = await CloudSync.syncNow();
-  renderSyncCard();
-  UI.toast(ok ? "同步完成" : "同步失败，请检查网络后重试", ok ? "success" : "error");
+  const act = box.querySelector("#sc-action");
+  if (act) {
+    act.onclick = () => {
+      if (!configured) { openCloudInfo(); return; }
+      openEnableSync();
+    };
+  }
 }
 
 function openCloudInfo() {
@@ -431,6 +425,6 @@ function openEnableSync() {
 
     s.close();
     renderSyncCard();
-    UI.toast(r && r.ok ? "多设备同步已开启" : "已绑定云端账号，但首次同步失败，请点「立即同步」重试", r && r.ok ? "success" : "warn");
+    UI.toast(r && r.ok ? "多设备同步已开启" : "已绑定云端账号，但首次同步失败，将自动重试", r && r.ok ? "success" : "warn");
   };
 }
