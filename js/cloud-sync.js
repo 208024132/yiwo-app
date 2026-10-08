@@ -93,6 +93,67 @@ window.CloudSync = (() => {
     db.users.push(clean);
   }
 
+  // 本地用户档案(驼峰) -> yiwo_users 行(下划线)。只发公开字段，不落 password。
+  function toUserRow(u) {
+    const p = publicProfileOf(u);
+    if (!p) return null;
+    return {
+      id: p.id,
+      account: p.account || "",
+      nickname: p.nickname || "",
+      avatar_emoji: p.avatarEmoji || "",
+      avatar_color: p.avatarColor === undefined ? 0 : p.avatarColor,
+      signature: p.signature || "",
+      gender: p.gender || "保密",
+      region: p.region || "",
+      updated_at: Date.now(),
+    };
+  }
+
+  // yiwo_users 行(下划线) -> 本地用户档案(驼峰)。updated_at 兜底为 regTime，保证排序稳定。
+  function fromUserRow(row) {
+    if (!row || !row.id) return null;
+    return {
+      id: String(row.id),
+      account: row.account || "",
+      nickname: row.nickname || "",
+      avatarEmoji: row.avatar_emoji || "",
+      avatarColor: Number(row.avatar_color) || 0,
+      signature: row.signature || "",
+      gender: row.gender || "保密",
+      region: row.region || "",
+      regTime: Number(row.updated_at) || Date.now(),
+    };
+  }
+
+  // 发布本人公开档案到 yiwo_users（失败静默，不阻塞主同步）。
+  async function upsertSelfProfile() {
+    try {
+      const row = toUserRow(localUser());
+      if (row) await Cloud.upsertMyProfile(row);
+    } catch (e) { /* 用户目录表不存在/失败不影响 kv/社交同步 */ }
+  }
+
+  // 换设备批量补好友档案：收集所有好友 id，去云端目录拉公开档案并补进本地 users。
+  async function fillFriendProfiles() {
+    try {
+      const db = Store.getSnapshot();
+      const me = localUid();
+      const ids = [];
+      (db.friends || []).forEach(f => {
+        if (f.a && f.a !== me) ids.push(f.a);
+        if (f.b && f.b !== me) ids.push(f.b);
+      });
+      if (!ids.length) return;
+      const rows = await Cloud.listUserProfiles(ids);
+      (rows || []).forEach(row => {
+        const p = fromUserRow(row);
+        if (p) mergePeerIntoUsers(db, p);
+      });
+      try { Store.save(); } catch (e) { /* ignore */ }
+    } catch (e) { /* 静默：用户目录不存在/失败不阻塞主同步 */ }
+  }
+
   /* ---------- 个人 KV 集合：记录级合并（P1-5） ----------
      accounts/wallets/debts/memos/tasks 等是以 uid 为键的「记录数组」，
      A/B 离线各加一条后整包 LWW 会互相覆盖丢数据。这里改为逐条 id 并集 +
@@ -681,6 +742,7 @@ window.CloudSync = (() => {
       lastHash = snapshotHash(db);
       writeLS(SYNC_KEY, String(now));
       setStatus("ok");
+      upsertSelfProfile();   // 上行成功后顺带发布本人公开档案（非阻塞，失败静默）
     } else {
       setStatus("error", "同步失败，请检查网络后重试");
     }
@@ -765,6 +827,8 @@ window.CloudSync = (() => {
         writeLS(SYNC_KEY, String(at));
         link(uid);
         setStatus("ok");
+        await fillFriendProfiles();   // 换设备批量补好友档案（失败静默）
+        upsertSelfProfile();          // 发布本人公开档案（非阻塞）
         return { ok: true, adopted: true };
       }
       // 云端没有个人数据：并入云端已有的社交记录，并建立本地登录会话，
@@ -774,6 +838,7 @@ window.CloudSync = (() => {
       await adopt(null, uid, social);
       const ok = await pushAll(true);
       if (!ok) setStatus("error", "首次上传失败，请稍后点「立即同步」重试");
+      await fillFriendProfiles();   // 批量补好友档案（pushAll 已非阻塞发布本人档案）
       return { ok: true, adopted: false };
     } catch (e) {
       setStatus("error", "同步初始化失败");
