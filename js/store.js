@@ -38,6 +38,7 @@ window.Store = (() => {
   /* ---------- 存储常量 ---------- */
   const LS_KEY = "yiwo_db_v2";      // 老版本 localStorage 业务数据：仅在迁移时读取，迁移成功后删除
   const BOOT_KEY = "yiwo_boot_v1";  // 同步引导快照（启动加速缓存，非数据源）
+  const BOOT_OVERSIZE_KEY = "yiwo_boot_oversize"; // 引导快照是否已超预算（持久化，避免每次会话重复全量探测）
   const BOOT_BUDGET = 3.5 * 1024 * 1024; // 引导快照体积上限（字符数），超出则剔除图片后写入
   const CACHE_THROTTLE = 800;       // 引导快照同步写入的最小间隔（ms）
   const FLUSH_DELAY = 350;          // 内存镜像落盘 debounce（ms）
@@ -415,8 +416,19 @@ window.Store = (() => {
     try {
       const out = {};
       Object.keys(src).forEach(k => { out[k] = src[k]; });
-      out.users = (src.users || []).map(u =>
-        u && u.avatarImg ? Object.assign({}, u, { avatarImg: IMG_MARK + "u:" + u.id }) : u);
+      out.users = (src.users || []).map(u => {
+        if (!u) return u;
+        const stripAvatar = !!u.avatarImg;
+        const stripBg = u.profileBg && u.profileBg.type === "image" && !!u.profileBg.src;
+        if (!stripAvatar && !stripBg) return u;
+        const c = Object.assign({}, u);
+        if (stripAvatar) c.avatarImg = IMG_MARK + "u:" + u.id;
+        // 背景图是 CSS background-image（非 <img>），无法用 patchDeferredImages 按 img 回填；
+        // 这里置空 src 让其首帧自然无背景，hydrate 后由 reviveBootRefs 回填对象引用，
+        // 用户重新进入「个人信息」页（重新读 Store.currentUser）即显示完整背景。
+        if (stripBg) c.profileBg = { type: "image", src: "" };
+        return c;
+      });
       out.moments = (src.moments || []).map(m => {
         if (!m || !m.photos || !m.photos.length) return m;
         return Object.assign({}, m, {
@@ -429,13 +441,19 @@ window.Store = (() => {
       return null;
     }
   }
-  let cacheOversize = false;   // 上一次已知整份快照超预算，跳过重复 stringify
+  let cacheOversize = (function () {
+    try { return localStorage.getItem(BOOT_OVERSIZE_KEY) === "1"; } catch (e) { return false; }
+  })();   // 引导快照是否已超预算：持久化判断结果，避免每次会话重复做全量含图 stringify 探测
   let cacheWarned = false;     // 快照写失败只提示一次，避免刷屏
+  function setCacheOversize() {
+    cacheOversize = true;
+    try { localStorage.setItem(BOOT_OVERSIZE_KEY, "1"); } catch (e) { /* ignore */ }
+  }
   function bootCacheJSON() {
     if (!cacheOversize) {
       const full = tryStringify(db);
       if (full !== null && full.length <= BOOT_BUDGET) return full;
-      cacheOversize = true;
+      setCacheOversize();
     }
     const slim = slimClone(db);
     return slim === null ? null : tryStringify(slim);
@@ -453,7 +471,7 @@ window.Store = (() => {
       const slim = slimClone(db);
       const slimJson = slim === null ? null : tryStringify(slim);
       if (slimJson !== null && slimJson !== json) {
-        try { localStorage.setItem(BOOT_KEY, slimJson); cacheOversize = true; warnCache(); return true; }
+        try { localStorage.setItem(BOOT_KEY, slimJson); setCacheOversize(); warnCache(); return true; }
         catch (e2) { /* 仍然失败，放弃快照 */ }
       }
       try { localStorage.removeItem(BOOT_KEY); } catch (e2) { /* ignore */ }
@@ -667,6 +685,11 @@ window.Store = (() => {
         if (!n || n.id == null) return;
         const o = oldUsers.find(x => x && x.id === n.id);
         if (o && o !== n && isPh(o.avatarImg) && !isPh(n.avatarImg)) o.avatarImg = n.avatarImg;
+        if (o && o !== n &&
+            o.profileBg && o.profileBg.type === "image" && !o.profileBg.src &&
+            n.profileBg && n.profileBg.type === "image" && n.profileBg.src) {
+          o.profileBg = n.profileBg;
+        }
       });
     }
     const oldMoments = bootDb.moments, newMoments = saved.moments;
