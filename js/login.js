@@ -62,4 +62,90 @@
   pwdEl.addEventListener("keydown", e => {
     if (e.key === "Enter") doLogin(accountEl.value, pwdEl.value);
   });
+
+  // ===== 忘记密码：输入邮箱 → 收验证码 → 设置新密码 =====
+  function cloudResetOn() {
+    return !!(window.Cloud && Cloud.isConfigured() && typeof Cloud.sendResetCode === "function" && typeof Cloud.resetPassword === "function");
+  }
+
+  function forgotPwd() {
+    const s = UI.sheet(`
+      <div class="sheet-head"><h3>找回密码</h3><button class="icon-btn" data-close>${UI.icon("close", 18)}</button></div>
+      <div class="field"><label>邮箱</label><input class="input" id="fp-email" type="text" placeholder="注册时的邮箱"></div>
+      <div class="field">
+        <label>验证码</label>
+        <div class="flex gap-8">
+          <input class="input flex-1" id="fp-code" placeholder="6 位数字验证码">
+          <button class="btn ghost" id="fp-send">发送验证码</button>
+        </div>
+      </div>
+      <div class="field"><label>新密码</label><input class="input" id="fp-pwd" type="password" placeholder="至少 8 位，含字母和数字"></div>
+      <div class="field"><label>确认新密码</label><input class="input" id="fp-pwd2" type="password" placeholder="再次输入新密码"></div>
+      <div class="field-err" id="fp-err"></div>
+      <div class="sheet-actions">
+        <button class="btn ghost" data-cancel>取消</button>
+        <button class="btn primary" data-ok>重置密码</button>
+      </div>`);
+
+    const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const fpErr = s.el.querySelector("#fp-err");
+    const sendBtn = s.el.querySelector("#fp-send");
+    const okBtn = s.el.querySelector("[data-ok]");
+    let countTimer = null;
+
+    // 预填登录页已输入的账号，减少重复输入
+    s.el.querySelector("#fp-email").value = accountEl.value.trim();
+
+    function clearTimer() {
+      if (countTimer) { clearInterval(countTimer); countTimer = null; }
+    }
+    s.el.querySelector("[data-close]").onclick = () => { clearTimer(); s.close(); };
+    s.el.querySelector("[data-cancel]").onclick = () => { clearTimer(); s.close(); };
+
+    function startCountdown() {
+      let n = 60;
+      sendBtn.disabled = true;
+      sendBtn.textContent = n + "s";
+      countTimer = setInterval(() => {
+        n--;
+        if (n <= 0) { clearTimer(); sendBtn.disabled = false; sendBtn.textContent = "发送验证码"; }
+        else { sendBtn.textContent = n + "s"; }
+      }, 1000);
+    }
+
+    sendBtn.onclick = async () => {
+      const mail = s.el.querySelector("#fp-email").value.trim();
+      if (!emailRe.test(mail)) { fpErr.textContent = "请输入正确的邮箱地址"; return; }
+      if (!cloudResetOn()) { fpErr.textContent = "云端服务未配置，暂不支持找回密码"; return; }
+      fpErr.textContent = "";
+      sendBtn.disabled = true;
+      const r = await Cloud.sendResetCode(mail);
+      if (!r.ok) { sendBtn.disabled = false; fpErr.textContent = r.msg; return; }
+      UI.toast("验证码已发送至你的邮箱", "success");
+      startCountdown();
+    };
+
+    okBtn.onclick = async () => {
+      const mail = s.el.querySelector("#fp-email").value.trim();
+      const code = s.el.querySelector("#fp-code").value.trim();
+      const pwd = s.el.querySelector("#fp-pwd").value;
+      const pwd2 = s.el.querySelector("#fp-pwd2").value;
+      fpErr.textContent = "";
+      if (!emailRe.test(mail)) { fpErr.textContent = "请输入正确的邮箱地址"; return; }
+      if (!/^\d{6}$/.test(code)) { fpErr.textContent = "请输入 6 位数字验证码"; return; }
+      if (pwd.length < 8) { fpErr.textContent = "新密码至少 8 位"; return; }
+      if (pwd !== pwd2) { fpErr.textContent = "两次输入的新密码不一致"; return; }
+      if (!cloudResetOn()) { fpErr.textContent = "云端服务未配置，暂不支持找回密码"; return; }
+      okBtn.disabled = true;
+      const r = await Cloud.resetPassword(code, pwd);
+      okBtn.disabled = false;
+      if (!r.ok) { fpErr.textContent = r.msg; return; }
+      clearTimer();
+      s.close();
+      UI.toast("密码已重置，请使用新密码登录", "success");
+    };
+  }
+
+  const forgotLink = document.getElementById("forgot-pwd");
+  if (forgotLink) forgotLink.onclick = () => forgotPwd();
 })();
