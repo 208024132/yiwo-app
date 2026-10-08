@@ -249,9 +249,12 @@ window.Store = (() => {
     const fitness = {};
     const tasks = {};
 
-    // 仅保留 1 个引导超级管理员：用于首次进入后台（进去后可自行改密、改名、新增管理员）
+    // 仅保留 1 个引导超级管理员：用于首次进入后台。
+    // 密码只存 SHA-256(固定盐) 哈希，不再明文；mustChangePwd=true 表示首次登录必须改密。
+    // 初始密码仍为 888888（哈希 = sha256("yiwo-admin-salt-v1::888888")），仅作首次登录用。
     const admins = [
-      { id: "ad1", account: "admin@yiwo.com", password: "888888", name: "陈以我", phone: "13800001111", dept: "产品部",
+      { id: "ad1", account: "admin@yiwo.com", password: "b2215bccee94b5e0071fc7f8b2e6a6d74640d206eb9a0032e2b463edc69427f9",
+        mustChangePwd: true, name: "陈以我", phone: "13800001111", dept: "产品部",
         idcard: "4403**********1234", perms: ["users", "layout", "admins"], role: "超级管理员", t: ts(-50, "09:00") },
     ];
 
@@ -520,6 +523,8 @@ window.Store = (() => {
         if (Array.isArray(a) && a.length === DEF_ORDER.length && a.every((v, i) => v === DEF_ORDER[i])) { delete db.order[k]; dirty = true; }
       });
     }
+    // P1-4：seq 为本地单调递增版本号（快照与 IndexedDB 各存一份），用于 hydrate 判断新旧
+    if (!Number(db.seq)) { db.seq = 1; dirty = true; }
     return dirty;
   }
   normalizeDb();
@@ -547,6 +552,9 @@ window.Store = (() => {
     // 异步接管完成前禁止落盘，否则种子占位数据会把 IndexedDB 里的真实数据覆盖掉
     if (hydrating) { dirty = true; pendingWrites = true; return Promise.resolve(false); }
     dirty = false;
+    // P1-4：每次落盘前递增 seq。pagehide 时快照是同步写、IndexedDB 是异步写，
+    // 若 IndexedDB 没写完，快照 seq 会大于 IndexedDB seq，hydrate 据此保留新快照并回写。
+    db.seq = (Number(db.seq) || 0) + 1;
     lastSessionJson = tryStringify(db.session || null) || "";
     writeBootCache();
     return IDB.set(db).then(() => true).catch(err => {
@@ -650,16 +658,32 @@ window.Store = (() => {
     return IDB.get().then(saved => {
       if (saved && Array.isArray(saved.users)) {
         // 库里已有数据：默认以 IndexedDB 为准覆盖内存。
-        // 例外：本页首帧就是真实数据（快照/老数据）且用户已经在接管前改过，
-        // 此时内存里的才是最新意图，保留内存并回写，避免丢掉这次操作。
+        // 例外一：本页首帧就是真实数据（快照/老数据）且用户已经在接管前改过，
+        //   此时内存里的才是最新意图，保留内存并回写，避免丢掉这次操作。
+        // 例外二（P1-4）：pagehide 时快照是同步写入、IndexedDB 是异步写入，
+        //   关页瞬间 IndexedDB 可能没写完。此时快照 seq 会大于 IndexedDB seq，
+        //   保留内存里的新快照并回写 IndexedDB，避免下次启动用旧 IDB 覆盖新数据。
         const usedPlaceholder = bootSource === "seed";
+        const bootSeq = Number(db && db.seq) || 0;
+        const savedSeq = Number(saved && saved.seq) || 0;
+        const bootNewer = bootSource === "cache" && bootSeq > savedSeq;
         reviveBootRefs(saved);
-        if (!(pendingWrites && !usedPlaceholder)) db = saved;
+        const keepMemory = bootNewer || (pendingWrites && !usedPlaceholder);
+        if (!keepMemory) db = saved;
         bootDb = null;
         hydrating = false;
         pendingWrites = false;
         normalizeDb();
-        if (dirty) flushNow(); else writeBootCache();
+        if (bootNewer) {
+          // 快照新于 IDB：把内存镜像回写 IDB 追平（成功后顺带清理老 localStorage 数据）
+          writeToIdb().catch(err => reportError("数据回写失败，请刷新页面重试", err));
+          writeBootCache();
+          dirty = false;
+        } else if (dirty) {
+          flushNow();
+        } else {
+          writeBootCache();
+        }
         patchDeferredImages();
         window.dispatchEvent(new CustomEvent("yiwo:store-ready", { detail: { source: "idb" } }));
         if (usedPlaceholder) reloadOnceAfterColdBoot();
@@ -1556,9 +1580,17 @@ window.Store = (() => {
   }
 
   /* ---------- 数据备份（导出 / 导入） ---------- */
-  // 始终从内存镜像导出，保证导出的是当前最新状态
+  // 始终从内存镜像导出，保证导出的是当前最新状态。
+  // 安全脱敏：备份文件不携带管理员密码；身份证号只保留前 4 位与后 4 位。
   function exportBackup() {
-    return JSON.stringify({ __yiwo: true, version: 2, exportedAt: Date.now(), data: db });
+    const clone = JSON.parse(JSON.stringify(db));
+    (clone.admins || []).forEach(a => {
+      delete a.password;
+      if (typeof a.idcard === "string" && a.idcard.length > 8) {
+        a.idcard = a.idcard.slice(0, 4) + "********" + a.idcard.slice(-4);
+      }
+    });
+    return JSON.stringify({ __yiwo: true, version: 2, exportedAt: Date.now(), data: clone });
   }
   function importBackup(text) {
     let obj;
@@ -1566,7 +1598,15 @@ window.Store = (() => {
     const next = obj && obj.__yiwo ? obj.data : obj;
     if (!next || !Array.isArray(next.users)) return { ok: false, msg: "不是有效的以我备份文件" };
     ["remark", "chatHidden", "groups", "friendGroup", "friendNav", "wallets", "debts", "customCats", "catOrder", "socialMeta"].forEach(k => { if (!next[k]) next[k] = {}; });
+    // 管理员凭据属于本机控制台：备份文件已剔除管理员密码，导入时保留本机现有管理员，
+    // 避免导入后后台因无密码而无法登录；新设备本机无管理员时回退到备份里的管理员骨架并强制改密。
+    const localAdmins = Array.isArray(db.admins) ? db.admins.slice() : [];
     db = next;
+    if (localAdmins.length) {
+      db.admins = localAdmins;
+    } else if (Array.isArray(db.admins)) {
+      db.admins.forEach(a => { delete a.password; a.mustChangePwd = true; });
+    }
     // 账号体系重构：恢复备份时同样不落用户明文密码（密码只在云端）
     (db.users || []).forEach(u => { if (u && u.password !== undefined) delete u.password; });
     ensureSettings();
@@ -1727,33 +1767,91 @@ window.Store = (() => {
     persist();
   }
 
+  /* ---------- 管理员密码哈希（Web Crypto SHA-256 + 固定盐，零第三方依赖） ---------- */
+  const ADMIN_PWD_SALT = "yiwo-admin-salt-v1::";
+  function bufToHex(buf) {
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, "0")).join("");
+  }
+  // 极少数非安全上下文（http 非 localhost）下 crypto.subtle 不可用时的降级，保证登录仍可用；
+  // 正常 HTTPS / localhost 环境一律走 Web Crypto SHA-256。
+  function fallbackHash(text) {
+    let h1 = 5381, h2 = 52711;
+    for (let i = 0; i < text.length; i++) {
+      const c = text.charCodeAt(i);
+      h1 = ((h1 << 5) + h1 + c) | 0;
+      h2 = ((h2 << 5) + h2 + c) | 0;
+    }
+    return "fallback:" + (h1 >>> 0).toString(16) + (h2 >>> 0).toString(16);
+  }
+  async function hashAdminPassword(password) {
+    const text = ADMIN_PWD_SALT + String(password);
+    try {
+      if (window.crypto && window.crypto.subtle) {
+        const buf = await window.crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+        return bufToHex(buf);
+      }
+    } catch (e) { /* 降级 */ }
+    return fallbackHash(text);
+  }
+  // 是否为哈希（64 位 hex 的 SHA-256，或降级格式 fallback:xxx）
+  function isHashed(v) {
+    return typeof v === "string" && (/^[0-9a-f]{64}$/.test(v) || v.indexOf("fallback:") === 0);
+  }
+
   /* ---------- 管理员 ---------- */
-  function loginAdmin(account, password) {
+  async function loginAdmin(account, password) {
     const a = db.admins.find(x => x.account === String(account).trim());
     if (!a) return { ok: false, msg: "管理员账号不存在" };
-    if (a.password !== password) return { ok: false, msg: "密码不正确" };
+    const input = String(password || "");
+    const hash = await hashAdminPassword(input);
+    if (a.password !== hash) {
+      // 兼容历史数据：老版本管理员密码为明文，首次成功登录时自动升级为哈希并强制改密
+      if (!isHashed(a.password) && a.password === input) {
+        a.password = hash;
+        a.mustChangePwd = true;
+        persist();
+        flushNow();
+      } else {
+        return { ok: false, msg: "密码不正确" };
+      }
+    }
     db.session = { type: "admin", aid: a.id };
     persist();
     flushNow();
-    return { ok: true, admin: a };
+    return { ok: true, admin: a, mustChangePwd: !!a.mustChangePwd };
   }
   function listAdmins() { return [...db.admins]; }
-  function addAdmin({ account, password, name, phone, dept, idcard, perms = [] }) {
+  async function addAdmin({ account, password, name, phone, dept, idcard, perms = [] }) {
+    account = String(account || "").trim();
+    if (!account) return { ok: false, msg: "请输入管理员账号" };
+    const pwd = String(password || "");
+    if (pwd.length < 6) return { ok: false, msg: "密码至少 6 位" };
     if (db.admins.some(a => a.account === account)) return { ok: false, msg: "该账号已存在" };
     const a = {
-      id: "ad" + Date.now(), account, password, name, phone, dept, idcard,
+      id: "ad" + Date.now(), account, password: await hashAdminPassword(pwd), name, phone, dept, idcard,
       perms, role: perms.includes("admins") ? "超级管理员" : "普通管理员", t: Date.now(),
     };
     db.admins.push(a);
     persist();
     return { ok: true, admin: a };
   }
-  function updateAdmin(aid, patch) {
+  async function updateAdmin(aid, patch) {
     const a = db.admins.find(x => x.id === aid);
-    if (!a) return;
-    Object.assign(a, patch);
+    if (!a) return null;
+    const clean = Object.assign({}, patch);
+    if (clean.password !== undefined) {
+      clean.password = await hashAdminPassword(String(clean.password));
+      clean.mustChangePwd = false;   // 主动改密后解除「首登强制改密」
+    }
+    Object.assign(a, clean);
     if (patch.perms) a.role = patch.perms.includes("admins") ? "超级管理员" : "普通管理员";
     persist();
+    return a;
+  }
+  // 校验管理员密码（供「修改密码」页验证旧密码，避免直接暴露/比对明文）
+  async function verifyAdminPwd(admin, password) {
+    if (!admin) return false;
+    return (await hashAdminPassword(String(password || ""))) === admin.password;
   }
   function hasPerm(admin, key) {
     return !!(admin && (admin.perms || []).includes(key));
@@ -1847,10 +1945,11 @@ window.Store = (() => {
     // 云端同步接入
     getSnapshot, applyRemote, beginRemoteApply, endRemoteApply, socialId,
     // 管理员
-    loginAdmin, listAdmins, addAdmin, updateAdmin, hasPerm,
+    loginAdmin, listAdmins, addAdmin, updateAdmin, verifyAdminPwd, hasPerm,
     // 仪表盘
     dashboard,
     // 危险操作
     factoryReset,
   };
 })();
+
