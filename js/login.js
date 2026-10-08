@@ -45,7 +45,9 @@
         if (!Store.currentUser()) {
           msg = "云端登录成功，但本机数据初始化失败，请稍后重试";
         } else {
-          location.href = localStorage.getItem("yiwo_onboarded") ? "index.html" : "onboarding.html";
+          let onboarded = null;
+          try { onboarded = localStorage.getItem("yiwo_onboarded"); } catch (e) { onboarded = null; }
+          location.href = onboarded ? "index.html" : "onboarding.html";
           return;
         }
       } else {
