@@ -99,6 +99,11 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
 
     <section class="list mt-16 fade-in">
       ${listItems()}
+      <a class="list-item tap" id="grid-style-entry">
+        <span class="li-ico">${UI.icon("layers", 20)}</span>
+        <span class="li-main"><span class="li-title">宫格样式</span><span class="li-sub" id="grid-style-sub">${gridStyleSub()}</span></span>
+        <span class="li-arrow">${UI.icon("chevron-right", 18)}</span>
+      </a>
       <a class="list-item tap" id="logout-entry">
         <span class="li-ico li-ico-danger">${UI.icon("logout", 20)}</span>
         <span class="li-main">
@@ -110,6 +115,7 @@ UserShell.boot({ tab: "my", title: Store.getTitle("page.my") });
 
   bindSort();
   bindList();
+  bindGridStyle();
   bindCloud();
 })();
 
@@ -261,6 +267,45 @@ function bindList() {
       location.href = "login.html";
     };
   }
+}
+
+/* ---------- 宫格样式（首页快捷宫格列数，用户本地可定制） ---------- */
+function userGridCols() {
+  const s = Store.getSettings();
+  if (s.userGridCols === 3 || s.userGridCols === 4) return s.userGridCols;
+  const v = Number(localStorage.getItem("yiwo_grid_cols"));
+  if (v === 3 || v === 4) return v;
+  return s.gridCols === 4 ? 4 : 3;
+}
+
+function gridStyleSub() { return userGridCols() + " 列"; }
+
+function bindGridStyle() {
+  const entry = document.getElementById("grid-style-entry");
+  if (!entry) return;
+  entry.onclick = () => {
+    const cur = userGridCols();
+    const s = UI.sheet(`
+      <div class="sheet-head"><h3>宫格样式</h3><button class="icon-btn" data-close aria-label="关闭">${UI.icon("close", 18)}</button></div>
+      <div class="field">
+        <label>首页快捷宫格列数</label>
+        <div class="seg">
+          <button data-col="3" class="${cur === 3 ? "on" : ""}">3 列</button>
+          <button data-col="4" class="${cur === 4 ? "on" : ""}">4 列</button>
+        </div>
+        <p class="txt-xs txt-3 mt-8">仅影响首页快捷宫格；后台统一配置 4 列时以后台为准。</p>
+      </div>`);
+    s.el.querySelector("[data-close]").onclick = s.close;
+    s.el.querySelectorAll("[data-col]").forEach(b => b.addEventListener("click", () => {
+      const n = Number(b.dataset.col);
+      try { Store.saveSettings({ userGridCols: n }); } catch (e) { /* ignore */ }
+      localStorage.setItem("yiwo_grid_cols", String(n));
+      s.el.querySelectorAll("[data-col]").forEach(x => x.classList.toggle("on", x === b));
+      const sub = document.getElementById("grid-style-sub");
+      if (sub) sub.textContent = n + " 列";
+      UI.toast("已保存，首页立即生效", "success");
+    }));
+  };
 }
 
 /* ---------- 数据备份 ---------- */
