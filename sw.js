@@ -7,7 +7,7 @@
    - 管理后台（/admin/）：不纳入 PWA，全部直接放行，避免干扰。
    更新方式：改动后 bump 下面的 CACHE 版本号（如 yiwo-v2）。
    ============================================================ */
-const CACHE = "yiwo-v1";
+const CACHE = "yiwo-v2";
 
 /* install：预缓存「首页」完整依赖，保证断网也能直接打开首页 */
 const PRECACHE = [
