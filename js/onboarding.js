@@ -4,8 +4,12 @@
 (() => {
   Theme.apply(Theme.current());
 
+  // localStorage 读写兜底（隐私模式/配额满时不卡死）
+  function lsGet(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+
   // 已完成引导则不再展示，直接进首页
-  if (localStorage.getItem("yiwo_onboarded")) { location.replace("index.html"); return; }
+  if (lsGet("yiwo_onboarded")) { location.replace("index.html"); return; }
 
   const SLIDES = [
     { e: "💰", title: "轻松记账", desc: "记下每一笔开销，看清钱都花在了哪里" },
@@ -31,7 +35,7 @@
   dots.innerHTML = SLIDES.map((_, i) => `<span class="ob-dot ${i === 0 ? "on" : ""}"></span>`).join("");
 
   function finish() {
-    localStorage.setItem("yiwo_onboarded", "1");
+    lsSet("yiwo_onboarded", "1");
     location.href = "index.html";
   }
 
