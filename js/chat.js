@@ -44,6 +44,12 @@ if (friend) {
     requestAnimationFrame(() => window.scrollTo(0, document.documentElement.scrollHeight));
   }
 
+  // 软键盘遮挡处理：输入框聚焦 / 视口变化时滚到底部，保持输入栏可见
+  input.addEventListener("focus", () => { setTimeout(scrollBottom, 200); });
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener("resize", scrollBottom);
+  }
+
   function render() {
     const msgs = Store.getMessages(u.id, fid);
     let html = "";
