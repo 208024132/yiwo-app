@@ -126,11 +126,37 @@ window.CloudSync = (() => {
     };
   }
 
+  // 本地用户档案(驼峰) -> yiwo_admin_profiles 行(下划线)。含 phone/age/birthday 私密字段，
+  // 经 RLS（id = auth.uid()，只能写自己那行）由前端直写；同样不落 password。
+  function toAdminRow(u) {
+    const p = profileOf(u);
+    if (!p || !p.id) return null;
+    return {
+      id: p.id,
+      account: p.account || "",
+      nickname: p.nickname || "",
+      avatar_emoji: p.avatarEmoji || "",
+      avatar_color: p.avatarColor === undefined ? 0 : p.avatarColor,
+      signature: p.signature || "",
+      gender: p.gender || "保密",
+      region: p.region || "",
+      phone: p.phone || "",
+      age: Number(p.age) || 0,
+      birthday: p.birthday || "",
+      updated_at: Date.now(),
+    };
+  }
+
   // 发布本人公开档案到 yiwo_users（失败静默，不阻塞主同步）。
   async function upsertSelfProfile() {
     try {
-      const row = toUserRow(localUser());
+      const u = localUser();
+      const row = toUserRow(u);
       if (row) await Cloud.upsertMyProfile(row);
+      // 同时把含私密字段的完整档案直写进 yiwo_admin_profiles（后台用户管理用）。
+      // RLS 策略保证只能写本人那行；失败时静默，不影响 kv/社交主同步。
+      const adm = toAdminRow(u);
+      if (adm) await Cloud.upsertAdminProfile(adm);
     } catch (e) { /* 用户目录表不存在/失败不影响 kv/社交同步 */ }
   }
 
