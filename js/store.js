@@ -913,6 +913,19 @@ window.Store = (() => {
   function listUsers() {
     return [...db.users].sort((a, b) => b.regTime - a.regTime);
   }
+  // 合并一个外部用户档案到本地（供云端搜索结果 / 补好友档案落库；不覆盖已有档案）。
+  // 返回是否真的新增；兜底剥 password、补 regTime，保证 listUsers 排序稳定。
+  function ensureUser(profile) {
+    if (!profile || !profile.id) return false;
+    const existing = db.users.find(x => x && x.id === profile.id);
+    if (existing) return false;
+    const clean = Object.assign({}, profile);
+    delete clean.password;
+    if (!clean.regTime) clean.regTime = Date.now();
+    db.users.push(clean);
+    persist();
+    return true;
+  }
   function filterUsers({ q = "", gender = "", region = "" } = {}) {
     q = q.trim().toLowerCase();
     return listUsers().filter(u => {
@@ -1936,7 +1949,7 @@ window.Store = (() => {
   return {
     CATS, SPORTS, PERMS, PROVINCES, regionLabel, WALLET_TYPES, WALLET_GROUPS, save,
     // 会话/用户
-    currentUser, currentAdmin, login, register, logout, updateProfile, getUser, listUsers, filterUsers,
+    currentUser, currentAdmin, login, register, logout, updateProfile, getUser, listUsers, filterUsers, ensureUser,
     renameUserId, idChangeInfo, migrateUid,
     // 好友
     listFriends, isFriend, pendingRequests, sentRequests, sendRequest, acceptRequest, rejectRequest, deleteFriend,
