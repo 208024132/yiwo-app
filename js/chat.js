@@ -61,7 +61,7 @@ if (friend) {
       prevT = m.t;
       const mine = m.from === u.id;
       html += `<div class="bubble-row ${mine ? "mine" : ""}">
-        ${mine ? "" : `<a class="bubble-ava" href="friend-profile.html?id=${fid}">${UI.avatarEl(friend, "sm")}</a>`}
+        ${mine ? "" : `<a class="bubble-ava" href="friend-profile.html?id=${encodeURIComponent(fid)}">${UI.avatarEl(friend, "sm")}</a>`}
         <div class="bubble">${UI.esc(m.text)}</div>
       </div>`;
     });
