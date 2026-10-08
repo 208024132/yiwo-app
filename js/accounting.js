@@ -76,7 +76,7 @@ UserShell.boot({ tab: null, title: Store.getTitle("page.accounting"), back: "ass
             <span class="rec-amt ${isIn ? "in" : "out"} num">${isIn ? "+" : "-"}¥${r.amount.toFixed(2)}</span>
             <button class="icon-btn rec-del" data-id="${r.id}" aria-label="删除">${UI.icon("trash", 18)}</button>
           </div>`;
-        }).join("") : UI.emptyBox("🧾", "这一天还没有记录", "点右下角 + 记一笔")}
+        }).join("") : UI.emptyBox("🧾", "这一天还没有记录", "点右下角 + 记一笔，试试早餐 ¥15")}
       </section>
     `;
 
