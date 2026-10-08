@@ -58,7 +58,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.boo
         <button data-tab="progress" class="${tab === "progress" ? "on" : ""}">阅读进度</button>
       </div>`;
 
-    const empty = () => `<div class="card">${UI.emptyBox("📭", "书架空空", "去推荐页挑一本喜欢的书吧")}</div>`;
+    const empty = () => `<div class="card">${UI.emptyBox("📭", "书架空空", "切换到「推荐」标签，挑一本加入书架开始阅读")}</div>`;
 
     if (tab === "advise") {
       html += `<div class="reco-grid">${Store.recommendBooks().map(recoCard).join("")}</div>`;
