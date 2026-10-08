@@ -69,7 +69,7 @@ UserShell.boot({ hideTab: true, back: "my.html", title: Store.getTitle("page.mem
     listEl.innerHTML = list.length
       ? list.map(noteCard).join("")
       : `<div class="card mi-empty-card">${UI.emptyBox("📝", keyword ? "没有匹配的笔记" : "还没有笔记",
-          keyword ? "换个关键词试试" : "点击右下角 + 记录第一条")}</div>`;
+          keyword ? "换个关键词试试" : "点击右下角 + 记录第一条，写下今天的想法")}</div>`;
   }
 
   function openEditor(m) {
